@@ -9,6 +9,7 @@ import { USER_SETTING_KEYS, WORLD_SETTING_KEYS } from "./brsw2-config.js";
 import { BRSW2_CONST } from "./brsw2-const.js";
 import {
     BRWSRoll,
+    bind_token_hover_highlight,
     calculate_damage_results,
     check_and_roll_conviction,
     create_common_card,
@@ -535,6 +536,12 @@ export function activate_item_card_listeners(br_card, html) {
             ev.currentTarget.dataset.heavyDamage,
         ).then();
     });
+
+    for (const name_span of html.querySelectorAll(".brsw-damage-target-name")) {
+        bind_token_hover_highlight(name_span, () => [
+            canvas.tokens.get(name_span.dataset.token),
+        ]);
+    }
 
     addEventListenerAll(html, ".brsw-target-tough", "click", (ev) => {
         edit_toughness(br_card, ev.currentTarget.dataset.index);

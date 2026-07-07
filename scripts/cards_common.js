@@ -227,7 +227,7 @@ function toggle_mods_popup(element, br_card) {
  * @param {HTMLElement} element - Element that triggers the highlight.
  * @param {Function} get_tokens - Resolves an array of tokens at hover time.
  */
-function bind_token_hover_highlight(element, get_tokens) {
+export function bind_token_hover_highlight(element, get_tokens) {
     let highlighted_tokens = [];
     element.addEventListener("mouseenter", (ev) => {
         if (!canvas.ready) {
