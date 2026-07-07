@@ -1086,7 +1086,9 @@ function create_roll_string(trait_dice, rof) {
  * If the card's trait is listed in the blindTraits world setting, turn the
  * card message into a Blind GM Roll (blind + GM whisper) before the roll is
  * evaluated, shown by Dice So Nice or rendered. Skill and attribute cards
- * only. Rerolls re-enter roll_trait, so an already blind message stays blind.
+ * only. A listed attribute matches both its own card and every skill card
+ * whose skill is linked to that attribute. Rerolls re-enter roll_trait, so
+ * an already blind message stays blind.
  * @param {BrCommonCard} br_card
  */
 async function apply_blind_traits(br_card) {
@@ -1110,6 +1112,21 @@ async function apply_blind_traits(br_card) {
     if (br_card.type === card_types.TYPE_SKILL_CARD) {
         if (br_card.skill?.name) {
             trait_names.push(br_card.skill.name.toLowerCase());
+        }
+        // A listed attribute also blinds every skill linked to it: match
+        // the skill's governing attribute key and its localized label.
+        const linked_attribute = br_card.skill?.system.attribute;
+        if (linked_attribute) {
+            trait_names.push(linked_attribute.toLowerCase());
+            const linked_translation_key =
+                BRSW2_CONST.ATTRIBUTES_TRANSLATION_KEYS[
+                    linked_attribute.toLowerCase()
+                ];
+            if (linked_translation_key) {
+                trait_names.push(
+                    game.i18n.localize(linked_translation_key).toLowerCase(),
+                );
+            }
         }
     } else if (br_card.attribute_name) {
         // Match both the attribute key ("smarts") and its localized label.
