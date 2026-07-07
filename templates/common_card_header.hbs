@@ -41,6 +41,12 @@
                           twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{header.img}}}" alt="Item image">
       {{/if}}
     </div>
+    {{#if target_image}}
+      <div class="twbr:w-8 twbr:h-8 twbr:ml-1">
+        <img class="brsw-target-img twbr:w-8 twbr:h-8 twbr:rounded twbr:hover:ring-2
+                          twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{target_image}}}" alt="Target token" title="{{target_names}}">
+      </div>
+    {{/if}}
   </div>
 </div>
 <div class="brsw-description {{#if collapse_descriptions}}brsw-collapsed{{/if}}">{{{description}}}</div>

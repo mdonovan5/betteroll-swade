@@ -818,6 +818,13 @@ export class BrCommonCard {
         data.actor_image = this.token?.document?.texture?.src || this.actor?.img;
         data.vehicle_image =
             this.vehicle_token?.document?.texture?.src || this.vehicle_actor?.img;
+        // First targeted token's art for the header target avatar. Resolved
+        // through the documents so the image survives scene changes.
+        const target_docs = this.target_ids
+            .map((target_id) => fromUuidSync(target_id))
+            .filter((doc) => doc);
+        data.target_image = target_docs[0]?.texture?.src;
+        data.target_names = target_docs.map((doc) => doc.name).join(", ");
         data.item = this.item;
         data.bennie_available = this.bennie_available;
         data.show_rerolls = this.show_rerolls;

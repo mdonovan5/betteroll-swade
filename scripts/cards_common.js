@@ -222,27 +222,68 @@ function toggle_mods_popup(element, br_card) {
 }
 
 /**
- * Binds hover listeners on a card element that highlight a token on the
- * canvas, mirroring the core v14 Combat Tracker behaviour.
+ * Binds hover listeners on a card element that highlight one or more tokens
+ * on the canvas, mirroring the core v14 Combat Tracker behaviour.
  * @param {HTMLElement} element - Element that triggers the highlight.
- * @param {Function} get_token - Resolves the token at hover time.
+ * @param {Function} get_tokens - Resolves an array of tokens at hover time.
  */
-function bind_token_hover_highlight(element, get_token) {
-    let highlighted_token = null;
+function bind_token_hover_highlight(element, get_tokens) {
+    let highlighted_tokens = [];
     element.addEventListener("mouseenter", (ev) => {
         if (!canvas.ready) {
             return;
         }
-        const token = get_token();
-        if (token && token._canHover(game.user, ev) && token.visible) {
-            token._onHoverIn(ev, { hoverOutOthers: true });
-            highlighted_token = token;
+        for (const token of get_tokens()) {
+            if (token && token._canHover(game.user, ev) && token.visible) {
+                token._onHoverIn(ev, { hoverOutOthers: false });
+                highlighted_tokens.push(token);
+            }
         }
     });
     element.addEventListener("mouseleave", (ev) => {
-        highlighted_token?._onHoverOut(ev);
-        highlighted_token = null;
+        for (const token of highlighted_tokens) {
+            token._onHoverOut(ev);
+        }
+        highlighted_tokens = [];
     });
+}
+
+// If true, clicking the target avatar activates the token layer when another
+// layer is active, so the selection works from anywhere.
+const ACTIVATE_TOKEN_LAYER_ON_TARGET_SELECT = true;
+
+/**
+ * Replaces the current selection with the tokens targeted by a card.
+ * Aborts without touching the selection if the user can't control any of
+ * them: PlaceableObject.control releases others before checking permissions,
+ * so a naive loop would wipe the selection and then select nothing.
+ * @param {BrCommonCard} br_card
+ */
+function select_card_targets(br_card) {
+    if (!canvas.ready) {
+        return;
+    }
+    const targets = br_card.targets.filter((t) => t);
+    if (!targets.length) {
+        ui.notifications.warn("None of the card's targets are on this scene.");
+        return;
+    }
+    const controllable = targets.filter((t) =>
+        t.document.canUserModify(game.user, "update"),
+    );
+    if (!controllable.length) {
+        ui.notifications.warn(
+            "You don't have permission to select any of the card's targets.",
+        );
+        return;
+    }
+    if (ACTIVATE_TOKEN_LAYER_ON_TARGET_SELECT && !canvas.tokens.active) {
+        canvas.tokens.activate();
+    }
+    canvas.tokens.releaseAll();
+    for (const token of controllable) {
+        token.control({ releaseOthers: false });
+    }
 }
 
 /**
@@ -260,7 +301,7 @@ export function activate_common_listeners(br_card, html) {
             actor_img.addEventListener("click", async (ev) => {
                 await manage_sheet(br_card.token?.actor || br_card.actor);
             });
-            bind_token_hover_highlight(actor_img, () => br_card.token);
+            bind_token_hover_highlight(actor_img, () => [br_card.token]);
         }
         const vehicle_img = html.querySelector(".brws-vehicle-img");
         if (vehicle_img) {
@@ -270,7 +311,19 @@ export function activate_common_listeners(br_card, html) {
                     br_card.vehicle_token?.actor || br_card.vehicle_actor,
                 );
             });
-            bind_token_hover_highlight(vehicle_img, () => br_card.vehicle_token);
+            bind_token_hover_highlight(vehicle_img, () => [
+                br_card.vehicle_token,
+            ]);
+        }
+        const target_img = html.querySelector(".brsw-target-img");
+        if (target_img) {
+            target_img.classList.add("bound");
+            target_img.addEventListener("click", () => {
+                select_card_targets(br_card);
+            });
+            bind_token_hover_highlight(target_img, () =>
+                br_card.targets.filter((t) => t),
+            );
         }
         html
             .querySelector(".br2-unshake-card")
