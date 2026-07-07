@@ -357,6 +357,57 @@ async function get_vehicle_tn(tn, targetToken) {
 }
 
 /**
+ * Fork addition: melee threat range of a weapon, in grid squares.
+ * Adjacency is 1; "Reach N" in the weapon notes adds N. SWPF melee-only
+ * weapons also encode total threat range as a single number in the range
+ * field (e.g. Glaive "2", Pike "3"), used when notes carry no Reach.
+ * @param {SwadeItem} item
+ * @return {number} threat range in grid squares
+ */
+function get_melee_threat_range(item) {
+    const reach_match = String(item.system.notes || "").match(/reach\s*(\d+)/i);
+    if (reach_match) {
+        return 1 + parseInt(reach_match[1], 10);
+    }
+    const range = String(item.system.range || "").trim();
+    if (/^\d+$/.test(range) && !is_ranged_capable(item)) {
+        return parseInt(range, 10);
+    }
+    return 1;
+}
+
+/**
+ * Fork addition: whether a weapon can genuinely be used at range
+ * (bracket range like "3/6/12", or rangeType RANGED/MIXED).
+ * @param {SwadeItem} item
+ */
+function is_ranged_capable(item) {
+    if (String(item.system.range || "").includes("/")) {
+        return true;
+    }
+    const range_type = item.system.rangeType;
+    return range_type === 1 || range_type === 2; // RANGED or MIXED
+}
+
+/**
+ * Fork addition: true when a weapon attack is being made in melee mode —
+ * the target is within the weapon's melee threat range (adjacency plus
+ * Reach). Any trait qualifies; melee usage is what makes it an attack
+ * against Parry. Token size is covered by measureDistance's
+ * closest-occupied-square measurement.
+ */
+function is_melee_mode_attack(origin_token, targetToken, item) {
+    if (!item || item.type !== "weapon" || item.system.isVehicular) {
+        return false;
+    }
+    if (!(item.isMeleeWeapon || !is_ranged_capable(item))) {
+        return false;
+    }
+    const distance = measureDistance(origin_token, targetToken);
+    return distance / canvas.grid.distance < get_melee_threat_range(item);
+}
+
+/**
  * Get a target number and modifiers from a token appropriated to a skill
  *
  * @param {Item} skill
@@ -385,7 +436,11 @@ export async function get_tn_from_token(
             if (gangup.bonus) {
                 tn.modifiers.push(new TraitModifier(gangup.name, gangup.bonus));
             }
-        } else if (item && item.system.range) {
+        } else if (is_melee_mode_attack(origin_token, targetToken, item)) {
+            // fork: any weapon used in melee mode (within adjacency + Reach)
+            // attacks against Parry, whatever the trait
+            use_parry_as_tn = true;
+        } else if (item && item.system.range && is_ranged_capable(item)) {
             use_parry_as_tn = calculate_distance(
                 origin_token,
                 targetToken,
@@ -394,6 +449,14 @@ export async function get_tn_from_token(
                 skill,
                 extra_data,
             );
+        }
+        // fork: a non-Fighting weapon attack resolved against Parry is
+        // melee usage, so Gang Up applies to it as well
+        if (!is_fighting && use_parry_as_tn && item?.type === "weapon") {
+            const gangup = calculateGangUp(origin_token, targetToken);
+            if (gangup.bonus) {
+                tn.modifiers.push(new TraitModifier(gangup.name, gangup.bonus));
+            }
         }
     }
     if (use_parry_as_tn) {
