@@ -834,6 +834,13 @@ export class BrCommonCard {
         data.bennie_available = this.bennie_available;
         data.show_rerolls = this.show_rerolls;
         data.selected_actions = this.getSelectedActions();
+        // Multi-Action radio row state. The row is only shown when both
+        // built-in multi-action penalty actions exist on this card.
+        const two_actions = this.getActionById("2ACTIONS");
+        const three_actions = this.getActionById("3ACTIONS");
+        data.show_multi_action = !!(two_actions && three_actions);
+        data.multi_action_2 = !!two_actions?.selected;
+        data.multi_action_3 = !!three_actions?.selected;
         data.hasFooterButtons = this.hasFooterButtons;
         data.skill_tooltip = this.skill_tooltip;
         data.supports_manual_mods = !!(this.attribute_name || this.skill || this.damage);

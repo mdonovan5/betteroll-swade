@@ -1,4 +1,18 @@
 {{#if action_sections}}
+    {{#if show_multi_action}}
+        <div class="brsw-multi-action-row twbr:my-1 twbr:flex twbr:items-center twbr:gap-2">
+            <span class="twbr:text-sm twbr:font-medium">{{localize "BRSW.Multi-action"}}</span>
+            <label class="twbr:text-sm twbr:hover:cursor-pointer">
+                <input type="radio" class="brsw-multi-action-radio" name="brsw-multi-action-{{id}}" data-level="1" {{#unless multi_action_2}}{{#unless multi_action_3}}checked{{/unless}}{{/unless}}> 1
+            </label>
+            <label class="twbr:text-sm twbr:hover:cursor-pointer">
+                <input type="radio" class="brsw-multi-action-radio" name="brsw-multi-action-{{id}}" data-level="2" {{#if multi_action_2}}checked{{/if}}> 2
+            </label>
+            <label class="twbr:text-sm twbr:hover:cursor-pointer">
+                <input type="radio" class="brsw-multi-action-radio" name="brsw-multi-action-{{id}}" data-level="3" {{#if multi_action_3}}checked{{/if}}> 3
+            </label>
+        </div>
+    {{/if}}
     <div class="brsw-selected-actions twbr:my-2 twbr:block twbr:p-1 twbr:bg-gray-500 twbr:border twbr:border-solid twbr:border-gray-700 twbr:rounded twbr:text-blue-200 twbr:shadow twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer twbr:leading-6" data-card-id="{{id}}">
         {{#if this.selected_actions}}
             {{#each this.selected_actions}}

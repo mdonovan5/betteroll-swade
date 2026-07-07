@@ -222,6 +222,29 @@ function toggle_mods_popup(element, br_card) {
 }
 
 /**
+ * Handles a click on the Multi-Action radio row above the selected actions
+ * box: selects the matching built-in multi-action penalty action and
+ * deselects the other one. Level 1 deselects both. Mirrors the card
+ * dialog save flow so downstream state stays consistent.
+ * @param ev - javascript click event
+ * @param {BrCommonCard} br_card - The card to be updated
+ */
+async function multi_action_radio_clicked(ev, br_card) {
+    const level = parseInt(ev.currentTarget.dataset.level, 10);
+    const two_actions = br_card.getActionById("2ACTIONS");
+    const three_actions = br_card.getActionById("3ACTIONS");
+    if (!two_actions || !three_actions || Number.isNaN(level)) {
+        return;
+    }
+    two_actions.selected = level === 2;
+    three_actions.selected = level === 3;
+    br_card.setTraitUsingSkillOverride();
+    br_card.refreshPPModsFromActions();
+    await br_card.render();
+    await br_card.save();
+}
+
+/**
  * Binds hover listeners on a card element that highlight one or more tokens
  * on the canvas, mirroring the core v14 Combat Tracker behaviour.
  * @param {HTMLElement} element - Element that triggers the highlight.
@@ -346,6 +369,12 @@ export function activate_common_listeners(br_card, html) {
             ?.addEventListener("click", () => {
                 game.brsw.dialog.show_card(br_card);
             });
+        for (const radio of html.querySelectorAll(".brsw-multi-action-radio")) {
+            radio.addEventListener("click", async (ev) => {
+                ev.stopPropagation();
+                await multi_action_radio_clicked(ev, br_card);
+            });
+        }
     }
     // Collapsible
     manage_collapsables(html, br_card.message);
