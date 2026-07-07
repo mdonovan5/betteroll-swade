@@ -72,6 +72,17 @@ async function create_skill_card(
             vehicle instanceof foundry.canvas.placeables.Token
         ) {
             br_message.vehicle_token_id = vehicle.id;
+        } else if (vehicle.isToken) {
+            br_message.vehicle_token_id = vehicle.token.id;
+        } else if (canvas.tokens) {
+            // Linked world actor origin: record the launching token when it
+            // can be identified.
+            const token =
+                canvas.tokens.controlled.find((t) => t.actor === vehicle) ||
+                vehicle.getActiveTokens()[0];
+            if (token) {
+                br_message.vehicle_token_id = token.id;
+            }
         }
     }
     await br_message.render(actions_stored);

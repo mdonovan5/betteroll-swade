@@ -90,6 +90,16 @@ export function create_common_card(origin, render_data, template) {
         br_message.token_id = origin.id;
     } else if (actor.isToken) {
         br_message.token_id = actor.token.id;
+    } else if (canvas.tokens) {
+        // Linked world actor origin: record the launching token when it can
+        // be identified. Prefer a controlled token of this actor, then the
+        // first of its tokens on the scene.
+        const token =
+            canvas.tokens.controlled.find((t) => t.actor === actor) ||
+            actor.getActiveTokens()[0];
+        if (token) {
+            br_message.token_id = token.id;
+        }
     }
 
     br_message.generateRenderData(render_data, template);
@@ -212,6 +222,30 @@ function toggle_mods_popup(element, br_card) {
 }
 
 /**
+ * Binds hover listeners on a card element that highlight a token on the
+ * canvas, mirroring the core v14 Combat Tracker behaviour.
+ * @param {HTMLElement} element - Element that triggers the highlight.
+ * @param {Function} get_token - Resolves the token at hover time.
+ */
+function bind_token_hover_highlight(element, get_token) {
+    let highlighted_token = null;
+    element.addEventListener("mouseenter", (ev) => {
+        if (!canvas.ready) {
+            return;
+        }
+        const token = get_token();
+        if (token && token._canHover(game.user, ev) && token.visible) {
+            token._onHoverIn(ev, { hoverOutOthers: true });
+            highlighted_token = token;
+        }
+    });
+    element.addEventListener("mouseleave", (ev) => {
+        highlighted_token?._onHoverOut(ev);
+        highlighted_token = null;
+    });
+}
+
+/**
  * Connects the listener for all chat cards
  * @param {BrCommonCard} br_card
  * @param {HTMLElement} html - html of the card
@@ -224,15 +258,19 @@ export function activate_common_listeners(br_card, html) {
         if (actor_img) {
             actor_img.classList.add("bound");
             actor_img.addEventListener("click", async (ev) => {
-                await manage_sheet(br_card.actor);
+                await manage_sheet(br_card.token?.actor || br_card.actor);
             });
+            bind_token_hover_highlight(actor_img, () => br_card.token);
         }
         const vehicle_img = html.querySelector(".brws-vehicle-img");
         if (vehicle_img) {
             vehicle_img.classList.add("bound");
             vehicle_img.addEventListener("click", async (ev) => {
-                await manage_sheet(br_card.vehicle_actor);
+                await manage_sheet(
+                    br_card.vehicle_token?.actor || br_card.vehicle_actor,
+                );
             });
+            bind_token_hover_highlight(vehicle_img, () => br_card.vehicle_token);
         }
         html
             .querySelector(".br2-unshake-card")

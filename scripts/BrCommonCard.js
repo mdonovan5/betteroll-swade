@@ -814,6 +814,10 @@ export class BrCommonCard {
         };
         data.actor = this.actor;
         data.vehicle_actor = this.vehicle_actor;
+        // Prefer the launching token's image for the header avatars.
+        data.actor_image = this.token?.document?.texture?.src || this.actor?.img;
+        data.vehicle_image =
+            this.vehicle_token?.document?.texture?.src || this.vehicle_actor?.img;
         data.item = this.item;
         data.bennie_available = this.bennie_available;
         data.show_rerolls = this.show_rerolls;

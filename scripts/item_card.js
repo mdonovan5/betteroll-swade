@@ -374,11 +374,21 @@ async function item_click_listener(ev, target, currentTarget) {
         "system.actions.additional." + item_action,
     );
     const actions_stored = {};
+	let damage_only = false;
     if (actionObj) {
         if (actionObj.type === "trait" || actionObj.type === "damage") {
             // This is a trait or damage action
             // Start with the action enabled
             actions_stored[item_action] = true;
+			if (actionObj.type === "damage") {
+				// Damage actions should behave like the .damage-roll
+				// shortcut: create the card and roll damage only,
+				// never the trait roll (which would also charge PP).
+				damage_only = true;
+				if (action === "trait" || action === "trait_damage") {
+					action = "card";
+				}
+			}
         } else if (actionObj.type === "macro") {
             // This is a macro action
             // Execute the macro and return; no need to create a card
@@ -405,7 +415,7 @@ async function item_click_listener(ev, target, currentTarget) {
         await roll_dmg(br_card, "");
     }
     // Shortcut for rolling damage
-    if (ev.target.classList.contains("damage-roll")) {
+    if (ev.target.classList.contains("damage-roll") || damage_only) {
         await roll_dmg(br_card, $(br_card.message.content), false, false);
     }
 }
