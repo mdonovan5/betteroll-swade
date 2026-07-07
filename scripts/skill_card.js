@@ -381,7 +381,7 @@ function get_melee_threat_range(item) {
  * (bracket range like "3/6/12", or rangeType RANGED/MIXED).
  * @param {SwadeItem} item
  */
-function is_ranged_capable(item) {
+export function is_ranged_capable(item) {
     if (String(item.system.range || "").includes("/")) {
         return true;
     }
@@ -396,7 +396,7 @@ function is_ranged_capable(item) {
  * against Parry. Token size is covered by measureDistance's
  * closest-occupied-square measurement.
  */
-function is_melee_mode_attack(origin_token, targetToken, item) {
+export function is_melee_mode_attack(origin_token, targetToken, item) {
     if (!item || item.type !== "weapon" || item.system.isVehicular) {
         return false;
     }

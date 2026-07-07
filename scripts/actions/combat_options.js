@@ -198,10 +198,10 @@ export const COMBAT_OPTIONS = [
                 selector_type: "skill",
                 selector_value: "fighting",
             },
-            {
-                selector_type: "item_type",
-                selector_value: "weapon",
-            },
+            // {
+            //     selector_type: "item_type",
+            //     selector_value: "weapon",
+            // },
         ],
         section: "attack",
         group: "BRSW.AttackOptionDesperate",
@@ -219,10 +219,10 @@ export const COMBAT_OPTIONS = [
                 selector_type: "skill",
                 selector_value: "fighting",
             },
-            {
-                selector_type: "item_type",
-                selector_value: "weapon",
-            },
+            // {
+            //     selector_type: "item_type",
+            //     selector_value: "weapon",
+            // },
         ],
         section: "attack",
         group: "BRSW.AttackOptionDesperate",

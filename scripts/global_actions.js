@@ -7,6 +7,7 @@ import * as BRSW2_CONFIG from "./brsw2-config.js";
 import { get_roll_options } from "./cards_common.js";
 import { get_enabled_gm_actions } from "./gm_actions.js";
 import { check_for_actions_with_damage } from "./item_card.js";
+import { is_melee_mode_attack, is_ranged_capable } from "./skill_card.js";
 import {
     SettingsUtils,
     Utils,
@@ -189,7 +190,26 @@ export function check_selector(type, value, item, actor) {
                 const locStringValue = game.i18n.localize("BRSW.SkillName." + Utils.toTitleCase(value));
                 selected = skillNameLower.includes(value.toLowerCase()) || skillNameLower.includes(locStringValue.toLowerCase());
             }
-        }
+			if (!selected /* && item.type === "weapon"*/) {
+				// fork: trait-independent usage gates. A weapon used in
+				// melee mode (target within adjacency + Reach) counts as
+				// a Fighting attack; a ranged-capable weapon used outside
+				// melee mode counts as a Shooting / Athletics (throwing)
+				// attack — whatever trait it actually rolls.
+				const wanted = game.i18n.localize(value).toLowerCase();
+				const origin_token = actor ? actor.getActiveTokens()[0] : null;
+				const target_token = game.user.targets.first();
+				const in_melee_mode =
+					!!origin_token &&
+					!!target_token &&
+					is_melee_mode_attack(origin_token, target_token, item);
+				if (wanted === "fighting") {
+					selected = true; //in_melee_mode;
+				} else if (wanted === "shooting" || wanted === "athletics") {
+					selected = true; //is_ranged_capable(item) && !in_melee_mode;
+				}
+			}
+    	}
     } else if (type === "skill_linked_attribute") {
         if (item.type === "attribute") {
             selected = false;
@@ -236,7 +256,7 @@ export function check_selector(type, value, item, actor) {
     } else if (type === "item_type") {
         selected = item.type === value;
     } else if (type === "is_weapon_or_bolt") {
-        selected = Utils.isWeaponOrBolt(item);
+        selected = true; //Utils.isWeaponOrBolt(item);
         if (value === "false") {
             selected = !selected;
         }
