@@ -329,6 +329,8 @@
   "BRSW.Settings.AutoCheckExtraCritFailures.Name": "Check for Extra Critical Failures",
   "BRSW.Settings.AutoStatusCards.Hint": "Show Unshake/Unstun cards at the start of a combatant's turn",
   "BRSW.Settings.AutoStatusCards.Name": "Show Status Removal Cards",
+  "BRSW.Settings.BlindTraits.Hint": "Comma separated list of skill and attribute names that always roll as Blind GM Rolls. Case insensitive.",
+  "BRSW.Settings.BlindTraits.Name": "Blind traits",
   "BRSW.Settings.ControlClickAction.Hint": "Select what happens when you click a name while pressing Control",
   "BRSW.Settings.ControlClickAction.Name": "Control Click",
   "BRSW.Settings.ClickActions.Name": "Click Actions",

@@ -98,6 +98,11 @@ export class BrCommonCard {
     }
 
     showPopout() {
+        // Never popout a blind message for non-GM users: the popout would
+        // render the card (and its results) even though the chat log hides it.
+        if (this.message.blind && !game.user.isGM) {
+            return;
+        }
         const top = cascade_starting_left + game.brsw.cascade_count * cascade_left_increment;
         const left = cascade_starting_top + game.brsw.cascade_count * cascade_top_increment;
 

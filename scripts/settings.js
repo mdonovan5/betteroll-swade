@@ -140,6 +140,13 @@ function registerWorldSettings() {
         },
     });
 
+    SettingsUtils.registerBR2WorldSetting(WORLD_SETTING_KEYS.blindTraits, {
+        name: game.i18n.localize("BRSW.Settings.BlindTraits.Name"),
+        hint: game.i18n.localize("BRSW.Settings.BlindTraits.Hint"),
+        default: "Notice, Stealth",
+        type: String,
+    });
+
     SettingsUtils.registerBR2WorldSetting(WORLD_SETTING_KEYS.defaultAmmoManagement, {
         name: game.i18n.localize("BRSW.Settings.AmmoManagement.Name"),
         hint: game.i18n.localize("BRSW.Settings.AmmoManagement.Hint"),

@@ -1006,10 +1006,16 @@ async function show_3d_dice(message, brswroll, roll) {
     for (const modifier of brswroll.modifiers) {
         if (modifier.dice && modifier.dice instanceof Roll) {
             // noinspection ES6MissingAwait
-            game.dice3d.showForRoll(modifier.dice, game.user, true, users);
+            game.dice3d.showForRoll(
+                modifier.dice,
+                game.user,
+                true,
+                users,
+                message.blind,
+            );
         }
     }
-    await game.dice3d.showForRoll(roll, game.user, true, users);
+    await game.dice3d.showForRoll(roll, game.user, true, users, message.blind);
 }
 
 function set_wild_die_theme(wildDie) {
@@ -1077,6 +1083,60 @@ function create_roll_string(trait_dice, rof) {
 }
 
 /**
+ * If the card's trait is listed in the blindTraits world setting, turn the
+ * card message into a Blind GM Roll (blind + GM whisper) before the roll is
+ * evaluated, shown by Dice So Nice or rendered. Skill and attribute cards
+ * only. Rerolls re-enter roll_trait, so an already blind message stays blind.
+ * @param {BrCommonCard} br_card
+ */
+async function apply_blind_traits(br_card) {
+    const card_types = BRSW2_CONST.BRSW_CARD_TYPES;
+    if (
+        br_card.type !== card_types.TYPE_SKILL_CARD &&
+        br_card.type !== card_types.TYPE_ATTRIBUTE_CARD
+    ) {
+        return;
+    }
+    const setting =
+        SettingsUtils.getWorldSetting(WORLD_SETTING_KEYS.blindTraits) || "";
+    const blind_traits = setting
+        .split(",")
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean);
+    if (!blind_traits.length) {
+        return;
+    }
+    const trait_names = [];
+    if (br_card.type === card_types.TYPE_SKILL_CARD) {
+        if (br_card.skill?.name) {
+            trait_names.push(br_card.skill.name.toLowerCase());
+        }
+    } else if (br_card.attribute_name) {
+        // Match both the attribute key ("smarts") and its localized label.
+        trait_names.push(br_card.attribute_name.toLowerCase());
+        const translation_key =
+            BRSW2_CONST.ATTRIBUTES_TRANSLATION_KEYS[
+                br_card.attribute_name.toLowerCase()
+            ];
+        if (translation_key) {
+            trait_names.push(game.i18n.localize(translation_key).toLowerCase());
+        }
+    }
+    if (!trait_names.some((name) => blind_traits.includes(name))) {
+        return;
+    }
+    if (!br_card.message.blind) {
+        const gm_ids = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        await br_card.message.update({ blind: true, whisper: gm_ids });
+    }
+    // A blind + whispered message is hidden from its author: close the
+    // popout on the roller's client so the result can't leak through it.
+    if (!game.user.isGM) {
+        br_card.closePopout();
+    }
+}
+
+/**
  * Makes a roll trait
  * @param {BrCommonCard}br_card
  * @param trait_dice - An object representing a trait dice
@@ -1084,6 +1144,7 @@ function create_roll_string(trait_dice, rof) {
  * @param extra_data - Extra data to add to render options
  */
 export async function roll_trait(br_card, trait_dice, dice_label, extra_data) {
+    await apply_blind_traits(br_card);
     const { actor } = br_card;
     const roll_options = { modifiers: [], rof: undefined };
     if (!br_card.trait_roll.is_rolled) {
