@@ -20,7 +20,8 @@ export const SYSTEM_GLOBAL_ACTION = [
 	{ selector_type: "item_type", selector_value: "weapon" },
 	{ selector_type: "item_type", selector_value: "power" },
 	],
- 	section: "attack",
+    section: "common",
+    group: "BRSW.SituationalModifiers",
   },
   {
     id: "NO_MERCY",

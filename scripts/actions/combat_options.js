@@ -27,10 +27,27 @@ export const COMBAT_OPTIONS = [
         selector_value: "fighting",
         self_add_status: "vulnerable",
         section: "attack",
-        group: "BRSW.AttackOption",
+        group: "BRSW.AttackOptionDesperate",
+        group_single: true,
         defaultChecked: {
             selector_type: "actor_has_effect",
             selector_value: "BRSW.StatusEffect.WildAttack",
+        },
+    },
+    {
+        id: "CDMG",
+        name: "BRSW.CunningDamage",
+        button_name: "BRSW.CunningDamage",
+        dmgMod: 6,
+        selector_type: "skill",
+        selector_value: "fighting",
+        self_add_status: "vulnerable",
+        section: "attack",
+        group: "BRSW.AttackOptionDesperate",
+        group_single: true,
+        defaultChecked: {
+            selector_type: "actor_has_effect",
+            selector_value: "BRSW.StatusEffect.CunningDamage",
         },
     },
     {
@@ -78,7 +95,7 @@ export const COMBAT_OPTIONS = [
         button_name: "BRSW.CalledHead",
         skillMod: -4,
         ignoresArcaneActivation: true,
-        dmgMod: +4,
+        dmgMod: 8,
         dmgOverride: "",
         selector_type: "is_weapon_or_bolt",
         selector_value: "true",
@@ -188,10 +205,10 @@ export const COMBAT_OPTIONS = [
     },
     {
         id: "DESPERATE_ATTACK-2",
-        name: "Desperate Attack +2",
-        button_name: "Desperate Attack +2",
+        name: "Desperate Attack (+2/-3)",
+        button_name: "Desperate Attack (+2/-3)",
         skillMod: 2,
-        dmgMod: -2,
+        dmgMod: -3,
         dmgOverride: "",
         and_selector: [
             {
@@ -209,10 +226,31 @@ export const COMBAT_OPTIONS = [
     },
     {
         id: "DESPERATE_ATTACK-4",
-        name: "Desperate Attack +4",
-        button_name: "Desperate Attack +4",
+        name: "Desperate Attack (+4/-5)",
+        button_name: "Desperate Attack (+4/-5)",
         skillMod: 4,
-        dmgMod: -4,
+        dmgMod: -5,
+        dmgOverride: "",
+        and_selector: [
+            {
+                selector_type: "skill",
+                selector_value: "fighting",
+            },
+            // {
+            //     selector_type: "item_type",
+            //     selector_value: "weapon",
+            // },
+        ],
+        section: "attack",
+        group: "BRSW.AttackOptionDesperate",
+        group_single: true,
+    },
+    {
+        id: "PRECISE_ATTACK-5",
+        name: "Precise Attack (-2/+6)",
+        button_name: "Precise Attack (-2/+6)",
+        skillMod: -2,
+        dmgMod: 6,
         dmgOverride: "",
         and_selector: [
             {
