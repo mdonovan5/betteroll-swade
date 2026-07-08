@@ -88,13 +88,9 @@ export class BrCommonCard {
     }
 
     createPopout() {
-        if (game.user.id !== this.message.author?.id || this.popoutShown) {
-            return;
-        }
-
-        if (SettingsUtils.getUserSetting(BRSW2_CONFIG.USER_SETTING_KEYS.autoPopoutChat)) {
-            this.showPopout();
-        }
+        // Auto-popout is permanently disabled: the setting was removed and is
+        // treated as always false. showPopout() is kept intact in case a
+        // manual trigger is ever wanted again.
     }
 
     showPopout() {
@@ -798,8 +794,9 @@ export class BrCommonCard {
         } else {
             await this.createFoundryMessage(new_content);
 
-            //If auto-popout is disabled, mark our popout as shown so that we won't show a bunch of old popouts if it's later enabled
-            this.popoutShown = !SettingsUtils.getUserSetting(BRSW2_CONFIG.USER_SETTING_KEYS.autoPopoutChat);
+            //Auto-popout is permanently disabled: always mark the popout as
+            //shown so old cards can never burst open if the feature returns.
+            this.popoutShown = true;
 
             // Optional chaining: author can be null on messages created with a
             // stale user id (pre-getAuthor-fix data). Treat that as "not

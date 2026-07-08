@@ -332,12 +332,8 @@ function registerUserSettings() {
         config: true,
     });
 
-    SettingsUtils.registerBR2UserSetting(USER_SETTING_KEYS.autoPopoutChat, {
-        name: "BRSW.Settings.PopoutChat.Name",
-        hint: "BRSW.Settings.PopoutChat.Hint",
-        default: true,
-        type: Boolean,
-    });
+    //The autoPopoutChat setting was removed on purpose: auto-popout is
+    //permanently disabled and treated as always false.
 }
 
 function cacheSettings(savedSettings, settingsCache) {
