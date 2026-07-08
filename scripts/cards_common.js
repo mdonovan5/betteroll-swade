@@ -1048,6 +1048,10 @@ async function show_3d_dice(message, brswroll, roll) {
  * - The `users` parameter is a hard filter on the socket broadcast; clients
  *   not on the list receive nothing and never get ghost ("?") dice.
  * - Ghost dice only appear when `options.ghost` is set explicitly.
+ * - messageID is deliberately NOT passed: showForRoll would stamp
+ *   ghost/secret on the roll from the SENDER's own message visibility, and
+ *   that poisoned notation is what gets broadcast. A player sending real
+ *   dice to the GMs would ghost them for everyone.
  *
  * Resulting behavior: whisper recipients (and the author, on non-blind
  * whispers) see the real dice; on blind messages everyone else gets ghost
@@ -1065,14 +1069,7 @@ function show_3d_roll(message, roll) {
     // Public roll, or DSN is configured to show secret rolls: real dice for
     // everyone, exactly like DSN's own chat hook would do.
     if (!recipients.length || !hide_secret) {
-        return game.dice3d.showForRoll(
-            roll,
-            game.user,
-            true,
-            null,
-            false,
-            message.id,
-        );
+        return game.dice3d.showForRoll(roll, game.user, true, null, false);
     }
 
     // Real dice for whisper recipients, plus the author on non-blind whispers
@@ -1088,7 +1085,6 @@ function show_3d_roll(message, roll) {
             true,
             real_users,
             !real_users.includes(game.user.id), // "blind" = hide locally
-            message.id,
         ),
     ];
 
@@ -1123,7 +1119,7 @@ function show_3d_roll(message, roll) {
                     true,
                     ghost_users,
                     !ghost_users.includes(game.user.id),
-                    message.id,
+                    null,
                     null,
                     { ghost: true },
                 ),
