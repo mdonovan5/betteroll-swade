@@ -1027,24 +1027,110 @@ async function show_3d_dice(message, brswroll, roll) {
     if (brswroll.wild_die) {
         set_wild_die_theme(roll.dice[roll.dice.length - 1]);
     }
-    let users = null;
-    if (message.whisper.length > 0) {
-        users = message.whisper;
-    }
     // Dice buried in modifiers.
     for (const modifier of brswroll.modifiers) {
         if (modifier.dice && modifier.dice instanceof Roll) {
             // noinspection ES6MissingAwait
-            game.dice3d.showForRoll(
-                modifier.dice,
-                game.user,
-                true,
-                users,
-                message.blind,
+            show_3d_roll(message, modifier.dice);
+        }
+    }
+    await show_3d_roll(message, roll);
+}
+
+/**
+ * Show one roll in 3D, replicating Dice So Nice's own per-client visibility
+ * logic (shouldInterceptMessage in DSN's main.js) for rolls that bypass the
+ * createChatMessage hook.
+ *
+ * DSN API semantics this works around:
+ * - The `blind` parameter of showForRoll only suppresses the LOCAL animation;
+ *   it does not implement blind-roll visibility.
+ * - The `users` parameter is a hard filter on the socket broadcast; clients
+ *   not on the list receive nothing and never get ghost ("?") dice.
+ * - Ghost dice only appear when `options.ghost` is set explicitly.
+ *
+ * Resulting behavior: whisper recipients (and the author, on non-blind
+ * whispers) see the real dice; on blind messages everyone else gets ghost
+ * dice according to DSN's "showGhostDice" world setting.
+ * @param {ChatMessage} message
+ * @param {Roll} roll
+ */
+function show_3d_roll(message, roll) {
+    const recipients = message.whisper ?? [];
+    const hide_secret = game.settings.get(
+        "dice-so-nice",
+        "hide3dDiceOnSecretRolls",
+    );
+
+    // Public roll, or DSN is configured to show secret rolls: real dice for
+    // everyone, exactly like DSN's own chat hook would do.
+    if (!recipients.length || !hide_secret) {
+        return game.dice3d.showForRoll(
+            roll,
+            game.user,
+            true,
+            null,
+            false,
+            message.id,
+        );
+    }
+
+    // Real dice for whisper recipients, plus the author on non-blind whispers
+    // (the author can see their own whispered message content).
+    const real_users = [...recipients];
+    if (!message.blind && message.author) {
+        real_users.push(message.author.id);
+    }
+    const promises = [
+        game.dice3d.showForRoll(
+            roll,
+            game.user,
+            true,
+            real_users,
+            !real_users.includes(game.user.id), // "blind" = hide locally
+            message.id,
+        ),
+    ];
+
+    // Ghost dice for everyone else on blind messages, honoring DSN's world
+    // setting: "0" never, "1" everyone, "2" the roll author only, "3"
+    // everyone but only for player-made rolls.
+    if (message.blind) {
+        const mode = game.settings.get("dice-so-nice", "showGhostDice");
+        let ghost_users = [];
+        if (
+            mode === "1" ||
+            (mode === "3" && message.author && !message.author.isGM)
+        ) {
+            ghost_users = game.users
+                .filter((user) => !real_users.includes(user.id))
+                .map((user) => user.id);
+        } else if (
+            mode === "2" &&
+            message.author &&
+            !real_users.includes(message.author.id)
+        ) {
+            ghost_users = [message.author.id];
+        }
+        if (ghost_users.length) {
+            // Fired after the real call so the real notation is built before
+            // options.ghost mutates roll.ghost, but NOT awaited sequentially,
+            // so real and ghost dice land on all clients simultaneously.
+            promises.push(
+                game.dice3d.showForRoll(
+                    roll,
+                    game.user,
+                    true,
+                    ghost_users,
+                    !ghost_users.includes(game.user.id),
+                    message.id,
+                    null,
+                    { ghost: true },
+                ),
             );
         }
     }
-    await game.dice3d.showForRoll(roll, game.user, true, users, message.blind);
+    return Promise.all(promises);
 }
 
 function set_wild_die_theme(wildDie) {

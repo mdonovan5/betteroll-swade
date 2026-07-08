@@ -28,10 +28,14 @@ export function getAuthor(actor) {
         return game.user.id;
     }
 
-    //Filter out the default and local user
+    //Filter out the default entry, the local user, and stale IDs of users
+    //that no longer exist in this world (e.g. actors imported from another
+    //world). A stale ID passed as message author resolves to a null author
+    //and breaks core chat, DSN and our own card rendering.
     const ownership = Object.entries(actor.ownership).filter(o => o[0] != "default" &&
         o[0] != game.user.id &&
-        o[1] === CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER);
+        o[1] === CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER &&
+        game.users.has(o[0]));
 
     //If we have no owners, use the GM
     if (ownership.length == 0) {

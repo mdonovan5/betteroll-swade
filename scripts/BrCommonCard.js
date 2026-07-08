@@ -88,7 +88,7 @@ export class BrCommonCard {
     }
 
     createPopout() {
-        if (game.user.id !== this.message.author.id || this.popoutShown) {
+        if (game.user.id !== this.message.author?.id || this.popoutShown) {
             return;
         }
 
@@ -801,7 +801,10 @@ export class BrCommonCard {
             //If auto-popout is disabled, mark our popout as shown so that we won't show a bunch of old popouts if it's later enabled
             this.popoutShown = !SettingsUtils.getUserSetting(BRSW2_CONFIG.USER_SETTING_KEYS.autoPopoutChat);
 
-            if (!this.message.author.active) {
+            // Optional chaining: author can be null on messages created with a
+            // stale user id (pre-getAuthor-fix data). Treat that as "not
+            // connected" instead of throwing and aborting card finalization.
+            if (!this.message.author?.active) {
                 //If the author isn't connected, mark the popout as shown so that we don't pop it out when they connect
                 this.popoutShown = true;
             }
