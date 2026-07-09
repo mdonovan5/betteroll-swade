@@ -421,7 +421,19 @@ export class Utils {
         }
 
         if (!trait) {
-            // No skill was found, we try to find untrained
+            // No skill was found. House rule: when the attempted skill's
+            // linked attribute can be resolved from its name, roll a
+            // detached untrained attempt (d4, attribute-derived modifier,
+            // wild d4) instead of hunting for an embedded Untrained item.
+            const attribute = Utils.attributeForSkillName(traitLower);
+            if (attribute) {
+                return Utils.makeUntrainedSkill(
+                    actor,
+                    attribute,
+                    traitName.replace("★ ", ""),
+                );
+            }
+            // Legacy fallback when the attribute is unknown.
             trait = Utils.findFirstSkillInActor(actor, [
                 ...BRSW2_CONST.UNTRAINED_SKILLS,
                 game.i18n.localize("BRSW.SkillName.UnskilledAttempt").toLowerCase(),
@@ -481,8 +493,14 @@ export class Utils {
 
         // If there is no skill anyway, we are left to guessing
         let skill;
+        let untrained_name;
+        let untrained_attribute;
         if (item.type === "power") {
             skill = Utils.findFirstSkillInActor(actor, BRSW2_CONST.ARCANE_SKILLS);
+            untrained_name = game.i18n.localize(
+                "BRSW.SkillName.UnskilledAttempt",
+            );
+            untrained_attribute = "smarts";
         } else if (item.type === "weapon") {
             if (parseInt(item.system.range) > 0) {
                 // noinspection JSUnresolvedVariable
@@ -491,18 +509,37 @@ export class Utils {
                         ...BRSW2_CONST.THROWING_SKILLS,
                         game.i18n.localize("BRSW.SkillName.Athletics").toLowerCase(), // add localization
                     ]);
+                    untrained_name = game.i18n.localize(
+                        "BRSW.SkillName.Athletics",
+                    );
                 } else {
                     skill = Utils.findFirstSkillInActor(actor, [
                         ...BRSW2_CONST.SHOOTING_SKILLS,
                         game.i18n.localize("BRSW.SkillName.Shooting").toLowerCase(), // add localization
                     ]);
+                    untrained_name = game.i18n.localize(
+                        "BRSW.SkillName.Shooting",
+                    );
                 }
             } else {
                 skill = Utils.findFirstSkillInActor(actor, [
                     ...BRSW2_CONST.FIGHTING_SKILLS,
                     game.i18n.localize("BRSW.SkillName.Fighting").toLowerCase(), // bag add localization
                 ]);
+                untrained_name = game.i18n.localize("BRSW.SkillName.Fighting");
             }
+            untrained_attribute =
+                Utils.attributeForSkillName(untrained_name) || "agility";
+        }
+
+        if (skill === undefined && untrained_name) {
+            // House rule: roll a detached untrained attempt for the
+            // canonical skill this item would have used.
+            return Utils.makeUntrainedSkill(
+                actor,
+                untrained_attribute,
+                untrained_name,
+            );
         }
 
         if (skill === undefined) {
@@ -513,6 +550,74 @@ export class Utils {
         }
 
         return skill;
+    }
+
+    /**
+     * House rule modifier for untrained attempts: half the linked
+     * attribute die, minus 5, capped at +1 (d4 -> -3, d6 -> -2, d8 -> -1,
+     * d10 -> 0, d12 -> +1).
+     * @param {number} sides Sides of the linked attribute die
+     * @return {number}
+     */
+    static untrainedModifier(sides) {
+        return Math.min(Math.floor(sides / 2) - 5, 1);
+    }
+
+    /**
+     * Resolve the linked attribute of a skill from its name using the
+     * cached skill data built by cacheSkillData (skill compendia plus
+     * world items).
+     * @param {string} skillName
+     * @return {string} Attribute key ("agility", ...) or "" if unknown
+     */
+    static attributeForSkillName(skillName) {
+        if (!skillName || !game.brsw?.SKILLS_DATA) {
+            return "";
+        }
+        const name = skillName.toLowerCase().replace("★ ", "").trim();
+        const swid = game.swade.util.slugify(name);
+        if (game.brsw.SKILLS_DATA[name]) {
+            return game.brsw.SKILLS_DATA[name].attribute;
+        }
+        if (game.brsw.SKILLS_DATA[swid]) {
+            return game.brsw.SKILLS_DATA[swid].attribute;
+        }
+        for (const skillData of Object.values(game.brsw.SKILLS_DATA)) {
+            if (skillData.name.toLowerCase() === name) {
+                return skillData.attribute;
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Build a detached (non-embedded) skill item representing an untrained
+     * attempt per the house rule: d4 trait die, modifier derived from the
+     * linked attribute (untrainedModifier) and a d4 wild die. The item has
+     * no id and is never added to the actor; BrCommonCard keeps its data in
+     * temp_skill_data so every roll and reroll rebuilds the same trait.
+     * @param {SwadeActor} actor
+     * @param {string} attributeKey "agility", "smarts", "spirit",
+     *  "strength" or "vigor"
+     * @param {string} [skillName] Name shown on the card (e.g. "Riding");
+     *  defaults to the localized Unskilled Attempt
+     * @return {Item} Detached skill item
+     */
+    static makeUntrainedSkill(actor, attributeKey, skillName) {
+        const attribute = actor?.system?.attributes?.[attributeKey];
+        const sides = attribute ? attribute.die.sides : 4;
+        return new CONFIG.Item.documentClass({
+            name:
+                skillName ||
+                game.i18n.localize("BRSW.SkillName.UnskilledAttempt"),
+            type: "skill",
+            system: {
+                swid: "unskilled-attempt",
+                attribute: attributeKey || "",
+                die: { sides: 4, modifier: Utils.untrainedModifier(sides) },
+                "wild-die": { sides: 4 },
+            },
+        });
     }
 
     /**

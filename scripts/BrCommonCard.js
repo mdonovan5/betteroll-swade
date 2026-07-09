@@ -1,6 +1,6 @@
 // This file defines the BrCommonCard class and directly related code.
 /* globals game, ChatPopout, console, canvas, Hooks, renderTemplate, TextEditor, ChatMessage,
-     Roll, CONST */
+     Roll, CONST, CONFIG */
 
 import * as BRSW2_CONFIG from "./brsw2-config.js";
 import { TraitRoll } from "./rolls.js";
@@ -42,6 +42,7 @@ export class BrCommonCard {
         this.actor_id = undefined;
         this.item_id = undefined;
         this.skill_id = undefined;
+        this.temp_skill_data = undefined; // Detached skill data (untrained attempts)
         this.damage = undefined;
         this.vehicle_actor_id = undefined;
         this.vehicle_token_id = undefined;
@@ -137,6 +138,7 @@ export class BrCommonCard {
             actor_id: this.actor_id,
             item_id: this.item_id,
             skill_id: this.skill_id,
+            temp_skill_data: this.temp_skill_data,
             vehicle_actor_id: this.vehicle_actor_id,
             vehicle_token_id: this.vehicle_token_id,
             environment: this.environment,
@@ -165,6 +167,7 @@ export class BrCommonCard {
             "actor_id",
             "item_id",
             "skill_id",
+            "temp_skill_data",
             "vehicle_actor_id",
             "vehicle_token_id",
             "environment",
@@ -262,13 +265,31 @@ export class BrCommonCard {
     }
 
     get skill() {
+        if (this.temp_skill_data) {
+            // Detached skill (untrained attempt): rebuild from stored data
+            // so rolls and rerolls work on every client without an
+            // embedded item.
+            if (!this._temp_skill_item) {
+                this._temp_skill_item = new CONFIG.Item.documentClass(
+                    this.temp_skill_data,
+                );
+            }
+            return this._temp_skill_item;
+        }
         if (this.skill_id) {
             return this.actor.items.find((item) => item.id === this.skill_id);
         }
         if (this.item_id) {
             const trait = Utils.getItemTrait(this.item, this.actor);
             if (trait && Object.hasOwn(trait, "type") && trait.type === "skill") {
-                this.skill_id = trait.id;
+                if (trait.id) {
+                    this.skill_id = trait.id;
+                } else {
+                    // Detached untrained attempt from getItemTrait: keep its
+                    // data so later rolls rebuild the same trait.
+                    this.temp_skill_data = trait.toObject();
+                    this._temp_skill_item = trait;
+                }
             }
             return trait;
         }
