@@ -606,6 +606,13 @@ export class Utils {
     static makeUntrainedSkill(actor, attributeKey, skillName) {
         const attribute = actor?.system?.attributes?.[attributeKey];
         const sides = attribute ? attribute.die.sides : 4;
+        // Carry the attribute's own roll modifier (e.g. an Elderly
+        // hindrance Active Effect writing to die.modifier) so the
+        // untrained attempt matches a plain attribute roll, which
+        // surfaces it through the same "Trait modifier" line.
+        const attributeModifier = attribute
+            ? parseInt(attribute.die.modifier) || 0
+            : 0;
         return new CONFIG.Item.documentClass({
             name:
                 skillName ||
@@ -614,7 +621,11 @@ export class Utils {
             system: {
                 swid: "unskilled-attempt",
                 attribute: attributeKey || "",
-                die: { sides: 4, modifier: Utils.untrainedModifier(sides) },
+                die: {
+                    sides: 4,
+                    modifier:
+                        Utils.untrainedModifier(sides) + attributeModifier,
+                },
                 "wild-die": { sides: 4 },
             },
         });

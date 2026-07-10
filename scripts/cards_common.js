@@ -849,16 +849,19 @@ async function get_new_roll_options(
     const extra_options = {};
 
     let targetToken = get_targeted_token();
-    if (!targetToken) {
-        canvas.tokens.controlled.forEach((token) => {
-            // noinspection JSUnresolvedVariable
-            if (
-                token.actor !== br_card.actor &&
-                token.actor !== br_card.vehicle_actor
-            ) {
-                targetToken = token;
-            }
-        });
+    if (!targetToken && canvas.tokens.controlled.length === 1) {
+        // fork: promote a controlled token to implicit target only when it
+        // is unambiguous (exactly one token selected, and not the roller).
+        // Mass rolls with several tokens selected must never treat a
+        // fellow roller as the target.
+        const only_controlled = canvas.tokens.controlled[0];
+        // noinspection JSUnresolvedVariable
+        if (
+            only_controlled.actor !== br_card.actor &&
+            only_controlled.actor !== br_card.vehicle_actor
+        ) {
+            targetToken = only_controlled;
+        }
     }
 
     if (targetToken && br_card.skill) {
