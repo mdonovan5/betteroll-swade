@@ -87,7 +87,7 @@
             ]
         }
     },
-    "version": "5.99.6",
+    "version": "5.99.7",
 	"manifest": "https://raw.githubusercontent.com/mdonovan5/betteroll-swade/master/module.json",
 	"download": "https://github.com/mdonovan5/betteroll-swade/archive/master.zip",
     "url": "https://github.com/mdonovan5/betteroll-swade",

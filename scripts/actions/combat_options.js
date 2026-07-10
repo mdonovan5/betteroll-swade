@@ -38,7 +38,7 @@ export const COMBAT_OPTIONS = [
         id: "CDMG",
         name: "BRSW.CunningDamage",
         button_name: "BRSW.CunningDamage",
-        dmgMod: 6,
+        dmgMod: "+1d6",
         selector_type: "skill",
         selector_value: "fighting",
         self_add_status: "vulnerable",
@@ -95,7 +95,7 @@ export const COMBAT_OPTIONS = [
         button_name: "BRSW.CalledHead",
         skillMod: -4,
         ignoresArcaneActivation: true,
-        dmgMod: 8,
+        dmgMod: 5,
         dmgOverride: "",
         selector_type: "is_weapon_or_bolt",
         selector_value: "true",
@@ -246,11 +246,11 @@ export const COMBAT_OPTIONS = [
         group_single: true,
     },
     {
-        id: "PRECISE_ATTACK-5",
-        name: "Precise Attack (-2/+6)",
-        button_name: "Precise Attack (-2/+6)",
+        id: "PRECISE_ATTACK-4",
+        name: "Precise Attack (-2/+4)",
+        button_name: "Precise Attack (-2/+4)",
         skillMod: -2,
-        dmgMod: 6,
+        dmgMod: 4,
         dmgOverride: "",
         and_selector: [
             {

@@ -501,7 +501,7 @@
   "BRSW.VisibilityTypes.Owners": "Card Owner",
   "BRSW.VisibilityTypes.OwnersAndGM": "Card Owner and GM",
   "BRSW.WildAttack": "Wild Attack (+2/+2, Vulnerable)",
-  "BRSW.CunningDamage": "Cunning Damage (+6 dmg, Vulnerable)",
+  "BRSW.CunningDamage": "Cunning Damage (+d6 dmg, Vulnerable)",
   "BRSW.Wound": "Wound",
   "BRSW.Wounds": "Wounds",
   "BRSW.WoundsOrFatigueIgnored": "Wounds or Fatigue ignored",
