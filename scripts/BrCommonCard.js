@@ -542,6 +542,16 @@ export class BrCommonCard {
                 ...attGlobalMods,
                 ...this.skill.system.effects,
             ];
+            // fork: an untrained attempt (detached temp skill) is
+            // attribute-derived, so labeled attribute modifiers routed by
+            // SWADE's _handleAttributeMatch into attributes.X.effects
+            // (e.g. an Elderly hindrance AE) apply to it as well, exactly
+            // as they do on the plain attribute card.
+            if (this.temp_skill_data) {
+                const abl =
+                    this.actor.system.attributes[this.skill.system.attribute];
+                effectArray.push(...(abl?.effects ?? []));
+            }
             this.populate_active_effect_actions_from_array(effectArray);
         } else if (this.attribute_name) {
             const abl = this.actor.system.attributes[this.attribute_name];
