@@ -376,11 +376,17 @@ export class BrCommonCard {
 
     populateWorldActions() {
         const item = this.item || this.skill || { type: "attribute", name: this.attribute_name };
+        // Item resolves to no trait (e.g. trait set to "None"): no trait roll
+        // is possible, so multi-action penalties are meaningless. Hide them.
+        const suppress_multi_action = !!this.item && !this.skill;
 
         for (const global_action of get_actions(item, this.actor)) {
             const name = game.i18n.localize(global_action.button_name);
             const section_name = (global_action.section ? global_action.section : "none").toLowerCase();
             const group_name = global_action.group || "BRSW.NoGroup";
+            if (suppress_multi_action && group_name === "BRSW.Multi-action") {
+                continue;
+            }
             const group_name_id = group_name.split(".").join("");
             const group_single = global_action.hasOwnProperty("group_single");
 
