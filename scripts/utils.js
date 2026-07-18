@@ -408,6 +408,17 @@ export class Utils {
         });
 
         if (!trait) {
+            // Swid fallback: display names may be decorated (e.g.
+            // "Performance (Deception)") while the swid keeps the original
+            // slug, so match the slugified trait string against stored swids.
+            const traitSlug = game.swade.util.slugify(traitLower.replace("★ ", ""));
+            trait = actor.items.find(
+                (skill) =>
+                    skill.type === "skill" && skill.system.swid === traitSlug,
+            );
+        }
+
+        if (!trait) {
             // Time to check for an attribute
             for (const attribute of BRSW2_CONST.ATTRIBUTES) {
                 const translation = game.i18n.localize(

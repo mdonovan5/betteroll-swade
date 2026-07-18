@@ -263,26 +263,35 @@ export function check_selector(type, value, item, actor) {
     } else if (type === "actor_name") {
         selected = actor.name.toLowerCase().includes(value.toLowerCase());
     } else if (type === "actor_has_skill") {
+        const localizedSkill = game.i18n.localize(value).toLowerCase();
+        const skillSlug = game.swade.util.slugify(localizedSkill);
         const item = actor.items.find((item) => {
             return (
                 item.type === "skill" &&
-                item.name.toLowerCase() === game.i18n.localize(value).toLowerCase()
+                (item.name.toLowerCase() === localizedSkill ||
+                    item.system.swid === skillSlug)
             );
         });
         return !!item;
     } else if (type === "actor_has_item") {
         const ITEM_TYPES = ["weapon", "armor", "shield", "gear", "consumable"];
+        const localizedItem = game.i18n.localize(value).toLowerCase();
+        const itemSlug = game.swade.util.slugify(localizedItem);
         const item = actor.items.find((item) => {
             return (
                 ITEM_TYPES.indexOf(item.type) !== -1 &&
-                item.name.toLowerCase() === game.i18n.localize(value).toLowerCase()
+                (item.name.toLowerCase() === localizedItem ||
+                    item.system.swid === itemSlug)
             );
         });
         return !!item;
     } else if (type === "actor_equips_item") {
+        const localizedEquip = game.i18n.localize(value).toLowerCase();
+        const equipSlug = game.swade.util.slugify(localizedEquip);
         const items = actor.items.find((item) => {
             return (
-                item.name.toLowerCase() === game.i18n.localize(value).toLowerCase() &&
+                (item.name.toLowerCase() === localizedEquip ||
+                    item.system.swid === equipSlug) &&
                 item.system.equipStatus > 1
             );
         });
