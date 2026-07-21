@@ -6,7 +6,7 @@
                 {{#each trait_roll.old_rolls}}
                     <span class="brsw-old-roll twbr:bg-gray-500 twbr:border twbr:border-solid
                         twbr:border-gray-700 twbr:rounded twbr:shadow twbr:hover:ring-2
-                        twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" data-index="{{@index}}">
+                        twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" data-index="{{@index}}" title="Use this roll instead">
                         {{#each dice}}
                             <span class="brsw-small-dice-image {{this.extra_class}}">
                                 {{this.final_total}}
@@ -16,7 +16,7 @@
             </div>
         </div>
     {{/if}}
-    <div class="brsw-roll-results-wrapper brsw-collapse-button twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" data-collapse="brsw-roll-detail">
+    <div class="brsw-roll-results-wrapper brsw-collapse-button twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" data-collapse="brsw-roll-detail" title="Show/hide roll details">
         <div class="brsw-roll-results">
             <div class="brsw-roll-values">
                 {{#each trait_roll.current_roll.dice}}
@@ -58,7 +58,7 @@
         {{#each trait_roll.current_roll.dice as |current_dice|}}
             <div class="brsw-roll-detail-row twbr:text-white {{this.extra_class}} brsw-override-die
                 twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer twbr:bg-gray-600
-                twbr:border twbr:border-solid twbr:border-gray-700 twbr:rounded twbr:shadow" data-die-index="{{@index}}">
+                twbr:border twbr:border-solid twbr:border-gray-700 twbr:rounded twbr:shadow" data-die-index="{{@index}}" title="Edit die result">
                 <span>{{this.label}}</span>
                 <span class="twbr:text-black">
                     {{#each this.unexploded}}
@@ -70,7 +70,7 @@
         {{#each trait_roll.modifiers}}
             <div class="brsw-roll-detail-row twbr:text-white {{this.extra_class}} twbr:hover:ring-2
                 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer twbr:bg-gray-600 twbr:border
-                twbr:border-solid twbr:border-gray-700 twbr:rounded twbr:shadow brsw-edit-modifier" data-index="{{@index}}" data-label="{{this.name}}" data-value="{{this.value}}">
+                twbr:border-solid twbr:border-gray-700 twbr:rounded twbr:shadow brsw-edit-modifier" data-index="{{@index}}" data-label="{{this.name}}" data-value="{{this.value}}" title="Edit modifier">
                 <span>{{this.name}}</span>
                 <span>
                     {{#if this.dice}}
@@ -86,7 +86,7 @@
                             {{this.value}}
                         </span>
                     {{/if}}
-                    <i class="brsw-delete-modifier brsw-clickable fas fa-trash brsw-form" data-index="{{@index}}"></i>
+                    <i class="brsw-delete-modifier brsw-clickable fas fa-trash brsw-form" data-index="{{@index}}" title="Delete modifier"></i>
                 </span>
             </div>
         {{/each}}

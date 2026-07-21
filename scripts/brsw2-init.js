@@ -143,7 +143,9 @@ Hooks.on("createChatMessage", (message, options, userId) => {
     const brData = message.getFlag("betterrolls-swade2", "br_data");
     if (brData) {
         if (brData.showPopout) {
-            const relevantMessage = message.getFlag("betterrolls-swade2", "creator") === game.user.id || message.author.id === game.user.id;
+            // Optional chaining: author can be null on messages created with
+            // a stale user id (pre-getAuthor-fix data).
+            const relevantMessage = message.getFlag("betterrolls-swade2", "creator") === game.user.id || message.author?.id === game.user.id;
             if (relevantMessage && SettingsUtils.getUserSetting(BRSW2_CONFIG.USER_SETTING_KEYS.autoPopoutChat)) {
                 const brCard = new BrCommonCard(message);
                 brCard.createPopout();

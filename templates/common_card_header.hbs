@@ -1,12 +1,12 @@
 <div id="brc-{{id}}" class="twbr:flex twbr:flex-row twbr:mb-1 twbr:justify-between">
   <div>
     <img class="brws-actor-img twbr:w-8 twbr:h-8 twbr:min-w-8 twbr:rounded twbr:hover:ring-2
-            twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{actor.img}}}" alt="Actor portrait">
+            twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{actor_image}}}" alt="Actor portrait" title="Open actor sheet">
   </div>
   {{#if vehicle_actor}}
     <div class="twbr:ml-1">
       <img class="brws-vehicle-img twbr:w-8 twbr:h-8 twbr:min-w-8 twbr:rounded twbr:hover:ring-2
-                twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{vehicle_actor.img}}}" alt="Vehicle portrait">
+                twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{vehicle_image}}}" alt="Vehicle portrait" title="Open vehicle sheet">
     </div>
   {{/if}}
   <div class="twbr:grow twbr:text-center twbr:align-middle twbr:text-lg twbr:relative
@@ -14,13 +14,13 @@
     <span class="twbr:group twbr:border-b">
       <a class="brsw-collapse-button brsw-header-title" data-collapse="brsw-description">{{header.title}}</a>
       <span class="brsw-common-tools brsw-form twbr:flex">
-        <i class="brsw-repeat-card brsw-common-tool fas fa-redo twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer"></i>
+        <i class="brsw-repeat-card brsw-common-tool fas fa-redo twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" title="Repeat this card"></i>
         {{#unless vehicle_actor}}
           <i class="brsw-owner-trusted-only brsw-save-macro brsw-common-tool fa fa-save twbr:hover:ring-2
-              twbr:hover:ring-offset-1 twbr:hover:cursor-pointer"></i>
+              twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" title="Save as macro"></i>
         {{/unless}}
         {{#if supports_manual_mods}}
-          <i class="brsw-manual-mods brsw-common-tool fas fa-plus-minus twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer"></i>
+          <i class="brsw-manual-mods brsw-common-tool fas fa-plus-minus twbr:hover:ring-2 twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" title="Manual modifiers"></i>
         {{/if}}
       </span>
       {{#if tooltip}}
@@ -38,9 +38,15 @@
     <div class="twbr:w-8 twbr:h-8">
       {{#if header.img}}
         <img class="brsw-header-img twbr:w-8 twbr:h-8 twbr:rounded twbr:hover:ring-2
-                          twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{header.img}}}" alt="Item image">
+                          twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{header.img}}}" alt="Item image" title="Open item sheet">
       {{/if}}
     </div>
+    {{#if target_image}}
+      <div class="twbr:w-8 twbr:h-8 twbr:ml-1">
+        <img class="brsw-target-img twbr:w-8 twbr:h-8 twbr:rounded twbr:hover:ring-2
+                          twbr:hover:ring-offset-1 twbr:hover:cursor-pointer" src="{{{target_image}}}" alt="Target token" title="{{target_names}}">
+      </div>
+    {{/if}}
   </div>
 </div>
 <div class="brsw-description {{#if collapse_descriptions}}brsw-collapsed{{/if}}">{{{description}}}</div>

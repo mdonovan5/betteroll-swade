@@ -21,6 +21,7 @@ export const SETTING_KEYS = {
 export const WORLD_SETTING_KEYS = {
     autoStatusCards: "auto-status-cards",
     autoCheckExtraCritFailures: "auto_check_extra_fumbles",
+    blindTraits: "blind-traits",
     clickActionKeys: {
         click: "click",
         shiftClick: "shift_click",

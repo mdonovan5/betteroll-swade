@@ -35,6 +35,7 @@
                 </span>
             {{/if}}
         </div>
+    {{/if}}
         <div class="twbr:relative twbr:flex twbr:justify-between">
             {{#if is_power}}
                 <span class="brws-common-modifiers brsw-form twbr:flex twbr:grow twbr:gap-1">
@@ -67,7 +68,6 @@
                 </span>
             {{/if}}
         </div>
-    {{/if}}
     {{#if applicable_effects}}
         <p>{{localize 'BRSW.ApplicableEffects'}}</p>
         {{#each applicable_effects}}

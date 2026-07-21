@@ -90,6 +90,16 @@ export function create_common_card(origin, render_data, template) {
         brCard.token_id = origin.id;
     } else if (actor.isToken) {
         brCard.token_id = actor.token.id;
+    } else if (canvas.tokens) {
+        // Linked world actor origin: record the launching token when it can
+        // be identified. Prefer a controlled token of this actor, then the
+        // first of its tokens on the scene.
+        const token =
+            canvas.tokens.controlled.find((t) => t.actor === actor) ||
+            actor.getActiveTokens()[0];
+        if (token) {
+            brCard.token_id = token.id;
+        }
     }
 
     brCard.setTrait(render_data.trait);
@@ -214,6 +224,94 @@ function toggle_mods_popup(element, brCard) {
 }
 
 /**
+ * Handles a click on the Multi-Action radio row above the selected actions
+ * box: selects the matching built-in multi-action penalty action and
+ * deselects the other one. Level 1 deselects both. Mirrors the card
+ * dialog save flow so downstream state stays consistent.
+ * @param ev - javascript click event
+ * @param {BrCommonCard} br_card - The card to be updated
+ */
+async function multi_action_radio_clicked(ev, br_card) {
+    const level = parseInt(ev.currentTarget.dataset.level, 10);
+    const two_actions = br_card.getActionById("2ACTIONS");
+    const three_actions = br_card.getActionById("3ACTIONS");
+    if (!two_actions || !three_actions || Number.isNaN(level)) {
+        return;
+    }
+    two_actions.selected = level === 2;
+    three_actions.selected = level === 3;
+    br_card.setTraitUsingSkillOverride();
+    br_card.refreshPPModsFromActions();
+    await br_card.render();
+    await br_card.save();
+}
+
+/**
+ * Binds hover listeners on a card element that highlight one or more tokens
+ * on the canvas, mirroring the core v14 Combat Tracker behaviour.
+ * @param {HTMLElement} element - Element that triggers the highlight.
+ * @param {Function} get_tokens - Resolves an array of tokens at hover time.
+ */
+export function bind_token_hover_highlight(element, get_tokens) {
+    let highlighted_tokens = [];
+    element.addEventListener("mouseenter", (ev) => {
+        if (!canvas.ready) {
+            return;
+        }
+        for (const token of get_tokens()) {
+            if (token && token._canHover(game.user, ev) && token.visible) {
+                token._onHoverIn(ev, { hoverOutOthers: false });
+                highlighted_tokens.push(token);
+            }
+        }
+    });
+    element.addEventListener("mouseleave", (ev) => {
+        for (const token of highlighted_tokens) {
+            token._onHoverOut(ev);
+        }
+        highlighted_tokens = [];
+    });
+}
+
+// If true, clicking the target avatar activates the token layer when another
+// layer is active, so the selection works from anywhere.
+const ACTIVATE_TOKEN_LAYER_ON_TARGET_SELECT = true;
+
+/**
+ * Replaces the current selection with the tokens targeted by a card.
+ * Aborts without touching the selection if the user can't control any of
+ * them: PlaceableObject.control releases others before checking permissions,
+ * so a naive loop would wipe the selection and then select nothing.
+ * @param {BrCommonCard} br_card
+ */
+function select_card_targets(br_card) {
+    if (!canvas.ready) {
+        return;
+    }
+    const targets = br_card.targets.filter((t) => t);
+    if (!targets.length) {
+        ui.notifications.warn("None of the card's targets are on this scene.");
+        return;
+    }
+    const controllable = targets.filter((t) =>
+        t.document.canUserModify(game.user, "update"),
+    );
+    if (!controllable.length) {
+        ui.notifications.warn(
+            "You don't have permission to select any of the card's targets.",
+        );
+        return;
+    }
+    if (ACTIVATE_TOKEN_LAYER_ON_TARGET_SELECT && !canvas.tokens.active) {
+        canvas.tokens.activate();
+    }
+    canvas.tokens.releaseAll();
+    for (const token of controllable) {
+        token.control({ releaseOthers: false });
+    }
+}
+
+/**
  * Connects the listener for all chat cards
  * @param {BrCommonCard} brCard
  * @param {HTMLElement} html - html of the card
@@ -226,15 +324,31 @@ export function activate_common_listeners(brCard, html) {
         if (actor_img) {
             actor_img.classList.add("bound");
             actor_img.addEventListener("click", async (ev) => {
-                await manage_sheet(brCard.actor);
+                await manage_sheet(brCard.token?.actor || brCard.actor);
             });
+            bind_token_hover_highlight(actor_img, () => [brCard.token]);
         }
         const vehicle_img = html.querySelector(".brws-vehicle-img");
         if (vehicle_img) {
             vehicle_img.classList.add("bound");
             vehicle_img.addEventListener("click", async (ev) => {
-                await manage_sheet(brCard.vehicle_actor);
+                await manage_sheet(
+                    brCard.vehicle_token?.actor || brCard.vehicle_actor,
+                );
             });
+            bind_token_hover_highlight(vehicle_img, () => [
+                brCard.vehicle_token,
+            ]);
+        }
+        const target_img = html.querySelector(".brsw-target-img");
+        if (target_img) {
+            target_img.classList.add("bound");
+            target_img.addEventListener("click", () => {
+                select_card_targets(brCard);
+            });
+            bind_token_hover_highlight(target_img, () =>
+                brCard.targets.filter((t) => t),
+            );
         }
         html
             .querySelector(".br2-unshake-card")
@@ -257,6 +371,12 @@ export function activate_common_listeners(brCard, html) {
             ?.addEventListener("click", () => {
                 game.brsw.dialog.show_card(brCard);
             });
+        for (const radio of html.querySelectorAll(".brsw-multi-action-radio")) {
+            radio.addEventListener("click", async (ev) => {
+                ev.stopPropagation();
+                await multi_action_radio_clicked(ev, brCard);
+            });
+        }
     }
     // Collapsible
     manage_collapsables(html, brCard.message);
@@ -376,7 +496,7 @@ export function activate_common_listeners(brCard, html) {
         });
     // Popout card
     html.querySelector(".brsw-popout-button")?.addEventListener("click", () => {
-        brCard.showPopout();
+        brCard.createPopout();
     });
 }
 
@@ -731,16 +851,19 @@ async function get_new_roll_options(
     const extra_options = {};
 
     let targetToken = get_targeted_token();
-    if (!targetToken) {
-        canvas.tokens.controlled.forEach((token) => {
-            // noinspection JSUnresolvedVariable
-            if (
-                token.actor !== brCard.actor &&
-                token.actor !== brCard.vehicle_actor
-            ) {
-                targetToken = token;
-            }
-        });
+    if (!targetToken && canvas.tokens.controlled.length === 1) {
+        // fork: promote a controlled token to implicit target only when it
+        // is unambiguous (exactly one token selected, and not the roller).
+        // Mass rolls with several tokens selected must never treat a
+        // fellow roller as the target.
+        const only_controlled = canvas.tokens.controlled[0];
+        // noinspection JSUnresolvedVariable
+        if (
+            only_controlled.actor !== brCard.actor &&
+            only_controlled.actor !== brCard.vehicle_actor
+        ) {
+            targetToken = only_controlled;
+        }
     }
 
     if (targetToken) {
@@ -909,18 +1032,106 @@ async function show_3d_dice(message, brswroll, roll) {
     if (brswroll.wild_die) {
         set_wild_die_theme(roll.dice[roll.dice.length - 1]);
     }
-    let users = null;
-    if (message.whisper.length > 0) {
-        users = message.whisper;
-    }
     // Dice buried in modifiers.
     for (const modifier of brswroll.modifiers) {
         if (modifier.dice && modifier.dice instanceof Roll) {
             // noinspection ES6MissingAwait
-            game.dice3d.showForRoll(modifier.dice, game.user, true, users);
+            show_3d_roll(message, modifier.dice);
         }
     }
-    await game.dice3d.showForRoll(roll, game.user, true, users);
+    await show_3d_roll(message, roll);
+}
+
+/**
+ * Show one roll in 3D, replicating Dice So Nice's own per-client visibility
+ * logic (shouldInterceptMessage in DSN's main.js) for rolls that bypass the
+ * createChatMessage hook.
+ *
+ * DSN API semantics this works around:
+ * - The `blind` parameter of showForRoll only suppresses the LOCAL animation;
+ *   it does not implement blind-roll visibility.
+ * - The `users` parameter is a hard filter on the socket broadcast; clients
+ *   not on the list receive nothing and never get ghost ("?") dice.
+ * - Ghost dice only appear when `options.ghost` is set explicitly.
+ * - messageID is deliberately NOT passed: showForRoll would stamp
+ *   ghost/secret on the roll from the SENDER's own message visibility, and
+ *   that poisoned notation is what gets broadcast. A player sending real
+ *   dice to the GMs would ghost them for everyone.
+ *
+ * Resulting behavior: whisper recipients (and the author, on non-blind
+ * whispers) see the real dice; on blind messages everyone else gets ghost
+ * dice according to DSN's "showGhostDice" world setting.
+ * @param {ChatMessage} message
+ * @param {Roll} roll
+ */
+function show_3d_roll(message, roll) {
+    const recipients = message.whisper ?? [];
+    const hide_secret = game.settings.get(
+        "dice-so-nice",
+        "hide3dDiceOnSecretRolls",
+    );
+
+    // Public roll, or DSN is configured to show secret rolls: real dice for
+    // everyone, exactly like DSN's own chat hook would do.
+    if (!recipients.length || !hide_secret) {
+        return game.dice3d.showForRoll(roll, game.user, true, null, false);
+    }
+
+    // Real dice for whisper recipients, plus the author on non-blind whispers
+    // (the author can see their own whispered message content).
+    const real_users = [...recipients];
+    if (!message.blind && message.author) {
+        real_users.push(message.author.id);
+    }
+    const promises = [
+        game.dice3d.showForRoll(
+            roll,
+            game.user,
+            true,
+            real_users,
+            !real_users.includes(game.user.id), // "blind" = hide locally
+        ),
+    ];
+
+    // Ghost dice for everyone else on blind messages, honoring DSN's world
+    // setting: "0" never, "1" everyone, "2" the roll author only, "3"
+    // everyone but only for player-made rolls.
+    if (message.blind) {
+        const mode = game.settings.get("dice-so-nice", "showGhostDice");
+        let ghost_users = [];
+        if (
+            mode === "1" ||
+            (mode === "3" && message.author && !message.author.isGM)
+        ) {
+            ghost_users = game.users
+                .filter((user) => !real_users.includes(user.id))
+                .map((user) => user.id);
+        } else if (
+            mode === "2" &&
+            message.author &&
+            !real_users.includes(message.author.id)
+        ) {
+            ghost_users = [message.author.id];
+        }
+        if (ghost_users.length) {
+            // Fired after the real call so the real notation is built before
+            // options.ghost mutates roll.ghost, but NOT awaited sequentially,
+            // so real and ghost dice land on all clients simultaneously.
+            promises.push(
+                game.dice3d.showForRoll(
+                    roll,
+                    game.user,
+                    true,
+                    ghost_users,
+                    !ghost_users.includes(game.user.id),
+                    null,
+                    null,
+                    { ghost: true },
+                ),
+            );
+        }
+    }
+    return Promise.all(promises);
 }
 
 function set_wild_die_theme(wildDie) {
@@ -982,6 +1193,77 @@ function createRollString(traitDie, rof, traitName) {
 }
 
 /**
+ * If the card's trait is listed in the blindTraits world setting, turn the
+ * card message into a Blind GM Roll (blind + GM whisper) before the roll is
+ * evaluated, shown by Dice So Nice or rendered. Skill and attribute cards
+ * only. A listed attribute matches both its own card and every skill card
+ * whose skill is linked to that attribute. Rerolls re-enter roll_trait, so
+ * an already blind message stays blind.
+ * @param {BrCommonCard} br_card
+ */
+async function apply_blind_traits(br_card) {
+    const card_types = BRSW2_CONST.BRSW_CARD_TYPES;
+    if (
+        br_card.type !== card_types.TYPE_SKILL_CARD &&
+        br_card.type !== card_types.TYPE_ATTRIBUTE_CARD
+    ) {
+        return;
+    }
+    const setting =
+        SettingsUtils.getWorldSetting(WORLD_SETTING_KEYS.blindTraits) || "";
+    const blind_traits = setting
+        .split(",")
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean);
+    if (!blind_traits.length) {
+        return;
+    }
+    const trait_names = [];
+    if (br_card.type === card_types.TYPE_SKILL_CARD) {
+        if (br_card.skill?.name) {
+            trait_names.push(br_card.skill.name.toLowerCase());
+        }
+        // A listed attribute also blinds every skill linked to it: match
+        // the skill's governing attribute key and its localized label.
+        const linked_attribute = br_card.skill?.system.attribute;
+        if (linked_attribute) {
+            trait_names.push(linked_attribute.toLowerCase());
+            const linked_translation_key =
+                BRSW2_CONST.ATTRIBUTES_TRANSLATION_KEYS[
+                    linked_attribute.toLowerCase()
+                ];
+            if (linked_translation_key) {
+                trait_names.push(
+                    game.i18n.localize(linked_translation_key).toLowerCase(),
+                );
+            }
+        }
+    } else if (br_card.attribute) {
+        // Match both the attribute key ("smarts") and its localized label.
+        trait_names.push(br_card.attribute.toLowerCase());
+        const translation_key =
+            BRSW2_CONST.ATTRIBUTES_TRANSLATION_KEYS[
+                br_card.attribute.toLowerCase()
+            ];
+        if (translation_key) {
+            trait_names.push(game.i18n.localize(translation_key).toLowerCase());
+        }
+    }
+    if (!trait_names.some((name) => blind_traits.includes(name))) {
+        return;
+    }
+    if (!br_card.message.blind) {
+        const gm_ids = ChatMessage.getWhisperRecipients("GM").map((u) => u.id);
+        await br_card.message.update({ blind: true, whisper: gm_ids });
+    }
+    // A blind + whispered message is hidden from its author: close the
+    // popout on the roller's client so the result can't leak through it.
+    if (!game.user.isGM) {
+        br_card.closePopout();
+    }
+}
+
+/**
  * Makes a roll trait
  * @param {BrCommonCard}brCard
  * @param traitDie - An object representing a trait die
@@ -989,6 +1271,7 @@ function createRollString(traitDie, rof, traitName) {
  * @param extra_data - Extra data to add to render options
  */
 export async function roll_trait(brCard, traitDie, traitName, extra_data) {
+    await apply_blind_traits(brCard);
     const { actor } = brCard;
     const roll_options = { modifiers: [], rof: undefined };
 

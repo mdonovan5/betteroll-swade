@@ -140,6 +140,13 @@ function registerWorldSettings() {
         },
     });
 
+    SettingsUtils.registerBR2WorldSetting(WORLD_SETTING_KEYS.blindTraits, {
+        name: game.i18n.localize("BRSW.Settings.BlindTraits.Name"),
+        hint: game.i18n.localize("BRSW.Settings.BlindTraits.Hint"),
+        default: "Notice, Stealth",
+        type: String,
+    });
+
     SettingsUtils.registerBR2WorldSetting(WORLD_SETTING_KEYS.defaultAmmoManagement, {
         name: game.i18n.localize("BRSW.Settings.AmmoManagement.Name"),
         hint: game.i18n.localize("BRSW.Settings.AmmoManagement.Hint"),
@@ -325,12 +332,8 @@ function registerUserSettings() {
         config: true,
     });
 
-    SettingsUtils.registerBR2UserSetting(USER_SETTING_KEYS.autoPopoutChat, {
-        name: "BRSW.Settings.PopoutChat.Name",
-        hint: "BRSW.Settings.PopoutChat.Hint",
-        default: true,
-        type: Boolean,
-    });
+    //The autoPopoutChat setting was removed on purpose: auto-popout is
+    //permanently disabled and treated as always false.
 }
 
 function cacheSettings(savedSettings, settingsCache) {

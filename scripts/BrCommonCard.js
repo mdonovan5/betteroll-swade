@@ -1,6 +1,6 @@
 // This file defines the BrCommonCard class and directly related code.
 /* globals game, ChatPopout, console, canvas, Hooks, renderTemplate, TextEditor, ChatMessage,
-     Roll, CONST */
+     Roll, CONST, CONFIG */
 
 import * as BRSW2_CONFIG from "./brsw2-config.js";
 import { TraitRoll } from "./rolls.js";
@@ -93,6 +93,11 @@ export class BrCommonCard {
     }
 
     async createPopout() {
+        // Never popout a blind message for non-GM users: the popout would
+        // render the card (and its results) even though the chat log hides it.
+        if (this.message.blind && !game.user.isGM) {
+            return;
+        }
         const top = cascade_starting_left + game.brsw.cascade_count * cascade_left_increment;
         const left = cascade_starting_top + game.brsw.cascade_count * cascade_top_increment;
 
@@ -251,7 +256,21 @@ export class BrCommonCard {
 
         this.trait = {};
         if( trait.type === "skill") {
-            this.trait.id = trait.id;
+            const embedded_id = trait.id ?? trait._id;
+            if (embedded_id) {
+                this.trait.id = embedded_id;
+            } else {
+                // Detached skill (untrained attempt): no embedded item id.
+                // Keep its full data so every client and reroll rebuilds the
+                // same trait. trait is a live detached Item at card creation
+                // or its plain serialized data after a reload.
+                this.trait.data =
+                    typeof trait.toObject === "function"
+                        ? trait.toObject()
+                        : trait;
+                this._detached_skill =
+                    typeof trait.toObject === "function" ? trait : undefined;
+            }
         } else {
             this.trait.name = trait.name.toLowerCase();
         }
@@ -262,13 +281,18 @@ export class BrCommonCard {
             if (this.trait.name) {
                 return this.actor.system.attributes[this.trait.name];
             }
+            if (this.trait.data) {
+                return this.detached_skill.system;
+            }
             return this.actor.items.get(this.trait.id)?.system;
         }
 
         if (this.item_id) {
             const trait = Utils.getItemTrait(this.item, this.actor);
             if (trait?.type === "skill") {
-                this.trait = { id: trait.id };
+                // setTrait handles both embedded skills ({id}) and detached
+                // untrained attempts from getItemTrait ({data}).
+                this.setTrait(trait);
                 return trait.system;
             } else if (trait?.name) {
                 this.trait = { name: trait.name.toLowerCase() };
@@ -285,6 +309,9 @@ export class BrCommonCard {
                 //This is an attribute not a skill
                 return undefined;
             }
+            if (this.trait.data) {
+                return this.detached_skill;
+            }
             return this.actor.items.get(this.trait.id);
         }
 
@@ -296,6 +323,19 @@ export class BrCommonCard {
         }
 
         return undefined;
+    }
+
+    /**
+     * Detached skill Item (untrained attempt) rebuilt from this.trait.data,
+     * so rolls and rerolls work on every client without an embedded item.
+     */
+    get detached_skill() {
+        if (!this._detached_skill) {
+            this._detached_skill = new CONFIG.Item.documentClass(
+                this.trait.data,
+            );
+        }
+        return this._detached_skill;
     }
 
     get attribute() {
@@ -398,11 +438,19 @@ export class BrCommonCard {
 
     populateWorldActions() {
         const item = this.item || this.skill || { type: "attribute", name: this.attribute };
+        // Item resolves to no trait (e.g. trait set to "None"): no trait roll
+        // is possible, so multi-action penalties are meaningless. Hide them.
+        // An attribute trait still rolls, so it must not suppress (the old
+        // skill getter returned attribute traits too; the new one does not).
+        const suppress_multi_action = !!this.item && !this.skill && !this.attribute;
 
         for (const global_action of get_actions(item, this.actor)) {
             const name = game.i18n.localize(global_action.button_name);
             const section_name = (global_action.section ? global_action.section : "none").toLowerCase();
             const group_name = global_action.group || "BRSW.NoGroup";
+            if (suppress_multi_action && group_name === "BRSW.Multi-action") {
+                continue;
+            }
             const group_name_id = group_name.split(".").join("");
             const group_single = global_action.hasOwnProperty("group_single");
 
@@ -559,6 +607,16 @@ export class BrCommonCard {
                 ...attGlobalMods,
                 ...this.skill.system.effects,
             ];
+            // fork: an untrained attempt (detached temp skill) is
+            // attribute-derived, so labeled attribute modifiers routed by
+            // SWADE's _handleAttributeMatch into attributes.X.effects
+            // (e.g. an Elderly hindrance AE) apply to it as well, exactly
+            // as they do on the plain attribute card.
+            if (this.trait?.data) {
+                const abl =
+                    this.actor.system.attributes[this.skill.system.attribute];
+                effectArray.push(...(abl?.effects ?? []));
+            }
             this.populate_active_effect_actions_from_array(effectArray);
         } else if (this.attribute) {
             const abl = this.actor.system.attributes[this.attribute];
@@ -946,10 +1004,28 @@ export class BrCommonCard {
         };
         data.actor = this.actor;
         data.vehicle_actor = this.vehicle_actor;
+        // Prefer the launching token's image for the header avatars.
+        data.actor_image = this.token?.document?.texture?.src || this.actor?.img;
+        data.vehicle_image =
+            this.vehicle_token?.document?.texture?.src || this.vehicle_actor?.img;
+        // First targeted token's art for the header target avatar. Resolved
+        // through the documents so the image survives scene changes.
+        const target_docs = this.target_ids
+            .map((target_id) => fromUuidSync(target_id))
+            .filter((doc) => doc);
+        data.target_image = target_docs[0]?.texture?.src;
+        data.target_names = target_docs.map((doc) => doc.name).join(", ");
         data.item = this.item;
         data.bennie_available = this.bennie_available;
         data.show_rerolls = this.show_rerolls;
         data.selected_actions = this.getSelectedActions();
+        // Multi-Action radio row state. The row is only shown when both
+        // built-in multi-action penalty actions exist on this card.
+        const two_actions = this.getActionById("2ACTIONS");
+        const three_actions = this.getActionById("3ACTIONS");
+        data.show_multi_action = !!(two_actions && three_actions);
+        data.multi_action_2 = !!two_actions?.selected;
+        data.multi_action_3 = !!three_actions?.selected;
         data.hasFooterButtons = this.hasFooterButtons;
         data.skill_tooltip = this.skill_tooltip;
         data.supports_manual_mods = !!(this.trait || this.damage);

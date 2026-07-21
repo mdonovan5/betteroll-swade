@@ -1,6 +1,6 @@
 {{#each damage_rolls}}
     <div class="brsw-roll-row twbr:flex twbr:justify-between">
-        <span class="brsw-clickable brsw-collapse-button twbr:max-w-1/2" data-collapse="brsw-damage-detail{{@index}}">
+        <span class="brsw-clickable brsw-collapse-button brsw-damage-target-name twbr:max-w-1/2" data-collapse="brsw-damage-detail{{@index}}" data-token="{{this.brswroll.rolls.0.target_id}}" title="Show/hide damage details">
             {{this.label}} :
         </span>
         <span class="twbr:flex">

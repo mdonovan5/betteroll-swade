@@ -7,6 +7,23 @@ import { TARGET_ACTIONS } from "./target-actions.js";
 
 export const SYSTEM_GLOBAL_ACTION = [
   {
+	// fork addition: roll-time Parry TN for attack powers — powers are
+	// hard-excluded from Parry in the TN calculation, so this action is
+	// the supported way to resolve them against the target's Parry
+	id: "MD-TN-PARRY",
+	name: "TN: Target Parry",
+	button_name: "vs Parry",
+	tnOverride: "Parry",
+	or_selector: [
+	{ selector_type: "item_type", selector_value: "skill" },
+	{ selector_type: "item_type", selector_value: "attribute" },
+	{ selector_type: "item_type", selector_value: "weapon" },
+	{ selector_type: "item_type", selector_value: "power" },
+	],
+    section: "common",
+    group: "BRSW.SituationalModifiers",
+  },
+  {
     id: "NO_MERCY",
     name: "BRSW.EdgeName.NoMercy",
     button_name: "BRSW.EdgeName.NoMercy",

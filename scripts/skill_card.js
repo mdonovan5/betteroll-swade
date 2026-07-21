@@ -69,6 +69,17 @@ async function create_skill_card(
             vehicle instanceof foundry.canvas.placeables.Token
         ) {
             brCard.vehicle_token_id = vehicle.id;
+        } else if (vehicle.isToken) {
+            brCard.vehicle_token_id = vehicle.token.id;
+        } else if (canvas.tokens) {
+            // Linked world actor origin: record the launching token when it
+            // can be identified.
+            const token =
+                canvas.tokens.controlled.find((t) => t.actor === vehicle) ||
+                vehicle.getActiveTokens()[0];
+            if (token) {
+                brCard.vehicle_token_id = token.id;
+            }
         }
     }
     await brCard.render(actions_stored);
@@ -101,11 +112,97 @@ function create_skill_card_from_id(
 }
 
 /**
+ * Creates a skill card for an untrained attempt (house rule): d4 trait
+ * die, a modifier of half the chosen attribute die minus 5 capped at +1,
+ * and a d4 wild die. No skill item is created on or needed by the actor;
+ * the trait data lives in the card itself.
+ *
+ * @param {Token, SwadeActor} origin The actor or token making the attempt
+ * @param {string} attribute_name Linked attribute: "agility", "smarts",
+ *  "spirit", "strength" or "vigor"
+ * @param {string} skill_name Optional name shown on the card (e.g.
+ *  "Riding"); defaults to the localized "Unskilled Attempt"
+ * @param {object} actions_stored An object with action ids as properties
+ *   and a boolean meaning if they need to set on or off
+ * @return {Promise} A promise for the BrCommonCard object
+ */
+async function create_untrained_skill_card(
+    origin,
+    attribute_name,
+    { skill_name, actions_stored = {} } = {},
+) {
+    let actor;
+    if (
+        origin instanceof TokenDocument ||
+        origin instanceof foundry.canvas.placeables.Token
+    ) {
+        actor = origin.actor;
+    } else {
+        actor = origin;
+    }
+    const attribute_key = (attribute_name || "").toLowerCase();
+    if (!actor?.system?.attributes?.[attribute_key]) {
+        ui.notifications.error(
+            `BRSW: Unknown attribute "${attribute_name}" for untrained attempt.`,
+        );
+        return null;
+    }
+    const skill = Utils.makeUntrainedSkill(actor, attribute_key, skill_name);
+    const extra_name = skill.name + " " + trait_to_string(skill.system);
+    const br_message = create_common_card(
+        origin,
+        {
+            header: {
+                type: game.i18n.localize("ITEM.TypeSkill"),
+                title: extra_name,
+                img: skill.img,
+            },
+            trait: skill,
+            description: skill.system.description,
+        },
+        "modules/betterrolls-swade2/templates/skill_card.hbs",
+    );
+    br_message.type = BRSW2_CONST.BRSW_CARD_TYPES.TYPE_SKILL_CARD;
+    await br_message.render(actions_stored);
+    await br_message.save();
+    return br_message;
+}
+
+/**
+ * Creates an untrained attempt card from ids, mainly for use in macros
+ *
+ * @param {string} token_id A token id, if it can be solved it will be used
+ *  before actor
+ * @param {string} actor_id An actor id, it could be set as fallback or
+ *  if you keep token empty as the only way to find the actor
+ * @param {string} attribute_name Linked attribute key
+ * @param {string} skill_name Optional name shown on the card
+ * @param {object} actions_stored An object with action ids as properties
+ *   and a boolean meaning if they need to set on or off
+ * @return {Promise} a promise for the BrCommonCard object
+ */
+function create_untrained_skill_card_from_id(
+    token_id,
+    actor_id,
+    attribute_name,
+    { skill_name, actions_stored = {} } = {},
+) {
+    const actor = get_actor_from_ids(token_id, actor_id);
+    return create_untrained_skill_card(actor, attribute_name, {
+        skill_name: skill_name,
+        actions_stored: actions_stored,
+    });
+}
+
+/**
  * Hooks the public functions to a global object
  */
 export function skill_card_hooks() {
     game.brsw.create_skill_card = create_skill_card;
     game.brsw.create_skill_card_from_id = create_skill_card_from_id;
+    game.brsw.create_untrained_skill_card = create_untrained_skill_card;
+    game.brsw.create_untrained_skill_card_from_id =
+        create_untrained_skill_card_from_id;
     game.brsw.roll_skill = roll_skill;
 }
 
@@ -168,8 +265,12 @@ export function activate_skill_card_listeners(brCard, html) {
     });
     html.querySelector(".brsw-header-img").addEventListener("click", (_) => {
         const { render_data, actor } = brCard;
-        const item = actor.items.get(render_data.trait.id);
-        item.sheet.render(true);
+        const item = actor.items.get(render_data.trait?.id);
+        // Untrained attempt cards carry detached trait data instead of an
+        // embedded item id; there is no sheet to open.
+        if (item) {
+            item.sheet.render(true);
+        }
     });
 }
 
@@ -338,6 +439,57 @@ async function get_vehicle_tn(tn, targetToken) {
 }
 
 /**
+ * Fork addition: melee threat range of a weapon, in grid squares.
+ * Adjacency is 1; "Reach N" in the weapon notes adds N. SWPF melee-only
+ * weapons also encode total threat range as a single number in the range
+ * field (e.g. Glaive "2", Pike "3"), used when notes carry no Reach.
+ * @param {SwadeItem} item
+ * @return {number} threat range in grid squares
+ */
+function get_melee_threat_range(item) {
+    const reach_match = String(item.system.notes || "").match(/reach\s*(\d+)/i);
+    if (reach_match) {
+        return 1 + parseInt(reach_match[1], 10);
+    }
+    const range = String(item.system.range || "").trim();
+    if (/^\d+$/.test(range) && !is_ranged_capable(item)) {
+        return parseInt(range, 10);
+    }
+    return 1;
+}
+
+/**
+ * Fork addition: whether a weapon can genuinely be used at range
+ * (bracket range like "3/6/12", or rangeType RANGED/MIXED).
+ * @param {SwadeItem} item
+ */
+export function is_ranged_capable(item) {
+    if (String(item.system.range || "").includes("/")) {
+        return true;
+    }
+    const range_type = item.system.rangeType;
+    return range_type === 1 || range_type === 2; // RANGED or MIXED
+}
+
+/**
+ * Fork addition: true when a weapon attack is being made in melee mode —
+ * the target is within the weapon's melee threat range (adjacency plus
+ * Reach). Any trait qualifies; melee usage is what makes it an attack
+ * against Parry. Token size is covered by measureDistance's
+ * closest-occupied-square measurement.
+ */
+export function is_melee_mode_attack(origin_token, targetToken, item) {
+    if (!item || item.type !== "weapon" || item.system.isVehicular) {
+        return false;
+    }
+    if (!(item.isMeleeWeapon || !is_ranged_capable(item))) {
+        return false;
+    }
+    const distance = measureDistance(origin_token, targetToken);
+    return distance / canvas.grid.distance < get_melee_threat_range(item);
+}
+
+/**
  * Get a target number and modifiers from a token appropriated to a skill
  *
  * @param {Item} skill
@@ -366,7 +518,11 @@ export async function getTNFromToken(
             if (gangup.bonus) {
                 tn.modifiers.push(new TraitModifier(gangup.name, gangup.bonus));
             }
-        } else if (item && item.system.range) {
+        } else if (is_melee_mode_attack(origin_token, targetToken, item)) {
+            // fork: any weapon used in melee mode (within adjacency + Reach)
+            // attacks against Parry, whatever the trait
+            use_parry_as_tn = true;
+        } else if (item && item.system.range && is_ranged_capable(item)) {
             use_parry_as_tn = calculate_distance(
                 origin_token,
                 targetToken,
@@ -375,6 +531,14 @@ export async function getTNFromToken(
                 skill,
                 extra_data,
             );
+        }
+        // fork: a non-Fighting weapon attack resolved against Parry is
+        // melee usage, so Gang Up applies to it as well
+        if (!is_fighting && use_parry_as_tn && item?.type === "weapon") {
+            const gangup = calculateGangUp(origin_token, targetToken);
+            if (gangup.bonus) {
+                tn.modifiers.push(new TraitModifier(gangup.name, gangup.bonus));
+            }
         }
     }
     if (use_parry_as_tn) {

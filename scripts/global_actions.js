@@ -7,6 +7,7 @@ import * as BRSW2_CONFIG from "./brsw2-config.js";
 import { get_roll_options } from "./cards_common.js";
 import { get_enabled_gm_actions } from "./gm_actions.js";
 import { check_for_actions_with_damage } from "./item_card.js";
+import { is_melee_mode_attack, is_ranged_capable } from "./skill_card.js";
 import {
     SettingsUtils,
     Utils,
@@ -190,7 +191,26 @@ function check_selector(type, value, item, actor) {
                 const locStringValue = game.i18n.localize("BRSW.SkillName." + Utils.toTitleCase(value));
                 selected = skillNameLower.includes(value.toLowerCase()) || skillNameLower.includes(locStringValue.toLowerCase());
             }
-        }
+			if (!selected /* && item.type === "weapon"*/) {
+				// fork: trait-independent usage gates. A weapon used in
+				// melee mode (target within adjacency + Reach) counts as
+				// a Fighting attack; a ranged-capable weapon used outside
+				// melee mode counts as a Shooting / Athletics (throwing)
+				// attack — whatever trait it actually rolls.
+				const wanted = game.i18n.localize(value).toLowerCase();
+				const origin_token = actor ? actor.getActiveTokens()[0] : null;
+				const target_token = game.user.targets.first();
+				const in_melee_mode =
+					!!origin_token &&
+					!!target_token &&
+					is_melee_mode_attack(origin_token, target_token, item);
+				if (wanted === "fighting") {
+					selected = true; //in_melee_mode;
+				} else if (wanted === "shooting" || wanted === "athletics") {
+					selected = true; //is_ranged_capable(item) && !in_melee_mode;
+				}
+			}
+    	}
     } else if (type === "skill_linked_attribute") {
         if (item.type === "attribute") {
             selected = false;
@@ -237,33 +257,42 @@ function check_selector(type, value, item, actor) {
     } else if (type === "item_type") {
         selected = item.type === value;
     } else if (type === "is_weapon_or_bolt") {
-        selected = Utils.isWeaponOrBolt(item);
+        selected = true; //Utils.isWeaponOrBolt(item);
         if (value === "false") {
             selected = !selected;
         }
     } else if (type === "actor_name") {
         selected = actor.name.toLowerCase().includes(value.toLowerCase());
     } else if (type === "actor_has_skill") {
+        const localizedSkill = game.i18n.localize(value).toLowerCase();
+        const skillSlug = game.swade.util.slugify(localizedSkill);
         const item = actor.items.find((item) => {
             return (
                 item.type === "skill" &&
-                item.name.toLowerCase() === game.i18n.localize(value).toLowerCase()
+                (item.name.toLowerCase() === localizedSkill ||
+                    item.system.swid === skillSlug)
             );
         });
         return !!item;
     } else if (type === "actor_has_item") {
         const ITEM_TYPES = ["weapon", "armor", "shield", "gear", "consumable"];
+        const localizedItem = game.i18n.localize(value).toLowerCase();
+        const itemSlug = game.swade.util.slugify(localizedItem);
         const item = actor.items.find((item) => {
             return (
                 ITEM_TYPES.indexOf(item.type) !== -1 &&
-                item.name.toLowerCase() === game.i18n.localize(value).toLowerCase()
+                (item.name.toLowerCase() === localizedItem ||
+                    item.system.swid === itemSlug)
             );
         });
         return !!item;
     } else if (type === "actor_equips_item") {
+        const localizedEquip = game.i18n.localize(value).toLowerCase();
+        const equipSlug = game.swade.util.slugify(localizedEquip);
         const items = actor.items.find((item) => {
             return (
-                item.name.toLowerCase() === game.i18n.localize(value).toLowerCase() &&
+                (item.name.toLowerCase() === localizedEquip ||
+                    item.system.swid === equipSlug) &&
                 item.system.equipStatus > 1
             );
         });
