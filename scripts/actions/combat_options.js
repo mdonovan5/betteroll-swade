@@ -95,7 +95,7 @@ export const COMBAT_OPTIONS = [
         button_name: "BRSW.CalledHead",
         skillMod: -4,
         ignoresArcaneActivation: true,
-        dmgMod: 5,
+        dmgMod: 4,
         dmgOverride: "",
         selector_type: "is_weapon_or_bolt",
         selector_value: "true",
@@ -246,11 +246,11 @@ export const COMBAT_OPTIONS = [
         group_single: true,
     },
     {
-        id: "PRECISE_ATTACK-4",
-        name: "Precise Attack (-2/+4)",
-        button_name: "Precise Attack (-2/+4)",
-        skillMod: -2,
-        dmgMod: 4,
+        id: "PRECISE_ATTACK",
+        name: "Precise Attack (-1/+2)",
+        button_name: "Precise Attack (-1/+2)",
+        skillMod: -1,
+        dmgMod: 2,
         dmgOverride: "",
         and_selector: [
             {
